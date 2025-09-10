@@ -16,7 +16,7 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: ["investandearnmoney.netlify.app", "http://localhost:5173"],
+  origin: ["https://investandearnmoney.netlify.app", "http://localhost:5173"],
   credentials: true
 }));
 
