@@ -17,7 +17,10 @@ const app = express();
 // Middleware
 app.use(cors({
   origin: ["https://investandearnmoney.netlify.app", "http://localhost:5173"],
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+  exposedHeaders: ['Set-Cookie']
 }));
 
 app.use(cookieParser());
@@ -39,6 +42,20 @@ app.get("/health", (req, res) => {
   res.status(200).json({ 
     status: "OK", 
     timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
+// Debug endpoint for cookie testing
+app.get("/debug/cookies", (req, res) => {
+  res.status(200).json({
+    cookies: req.cookies,
+    headers: {
+      cookie: req.headers.cookie,
+      'user-agent': req.headers['user-agent'],
+      origin: req.headers.origin,
+      referer: req.headers.referer
+    },
     environment: process.env.NODE_ENV || 'development'
   });
 });

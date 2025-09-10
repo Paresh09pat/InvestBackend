@@ -84,13 +84,12 @@ router.post("/register", validateRegistration, async (req, res) => {
     );
     
     // Set HTTP-only cookie
-
     res.cookie("token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production", // true in prod
-      sameSite: "None", // allow cross-domain cookies
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      path: "/", // optional, covers all routes
+      path: "/",
     });
     
     res.status(201).json({
@@ -164,7 +163,7 @@ router.post("/login", validateLogin, async (req, res) => {
     res.cookie("token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "None",
+      sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
       maxAge: 24 * 60 * 60 * 1000, 
       path: "/", 
     });
@@ -306,7 +305,8 @@ router.post("/logout", (req, res) => {
   res.clearCookie('token', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict'
+    sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+    path: "/"
   });
   
   res.status(200).json({

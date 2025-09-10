@@ -66,8 +66,8 @@ router.post("/login", async (req, res) => {
 
     res.cookie("admin_token", adminToken, {
       httpOnly: true,
-      secure: true,
-      sameSite: "None",
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
       maxAge: 24 * 60 * 60 * 1000,
       path: "/",
     });
@@ -134,8 +134,8 @@ router.get("/profile", async (req, res) => {
       // Set new cookie
       res.cookie("admin_token", newAdminToken, {
         httpOnly: true,
-        secure: false,
-        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
         maxAge: 24 * 60 * 60 * 1000,
         path: "/",
       });
@@ -173,9 +173,9 @@ router.get("/profile", async (req, res) => {
 router.post("/logout", (req, res) => {
   res.clearCookie("admin_token", {
     httpOnly: true,
-    secure: false, // Set to false for development
-    sameSite: "lax", // Changed from 'strict' to 'lax' for better compatibility
-    path: "/", // Explicitly set path
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+    path: "/",
   });
 
   res.status(200).json({
