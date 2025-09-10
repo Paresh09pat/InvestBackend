@@ -19,7 +19,6 @@ if (!cloudName || !apiKey || !apiSecret) {
     api_key: apiKey,
     api_secret: apiSecret,
   });
-  console.log('✅ Cloudinary configured successfully');
 }
 
 module.exports = cloudinary;

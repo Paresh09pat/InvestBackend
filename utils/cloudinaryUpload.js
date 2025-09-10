@@ -32,7 +32,7 @@ const uploadToCloudinary = async (file, folder = 'investment-app') => {
       bytes: result.bytes,
     };
   } catch (error) {
-    console.error('Cloudinary upload error:', error);
+    console.error('Error:', error);
     throw new Error('Failed to upload file to Cloudinary');
   }
 };
@@ -60,7 +60,7 @@ const uploadToLocal = async (file, folder = 'uploads') => {
       localPath: filePath
     };
   } catch (error) {
-    console.error('Local upload error:', error);
+    console.error('Error:', error);
     throw new Error('Failed to upload file locally');
   }
 };
@@ -68,7 +68,7 @@ const uploadToLocal = async (file, folder = 'uploads') => {
 // Delete image from Cloudinary
 const deleteFromCloudinary = async (publicId) => {
   if (!isCloudinaryConfigured()) {
-    console.warn('Cloudinary not configured, skipping deletion');
+    console.warn('Error:', error);
     return { result: 'ok' };
   }
 
@@ -76,7 +76,7 @@ const deleteFromCloudinary = async (publicId) => {
     const result = await cloudinary.uploader.destroy(publicId);
     return result;
   } catch (error) {
-    console.error('Cloudinary delete error:', error);
+    console.error('Error:', error);
     throw new Error('Failed to delete file from Cloudinary');
   }
 };
@@ -89,7 +89,7 @@ const deleteFromLocal = async (filePath) => {
     }
     return { result: 'ok' };
   } catch (error) {
-    console.error('Local delete error:', error);
+    console.error('Error:', error);
     throw new Error('Failed to delete local file');
   }
 };
@@ -99,7 +99,6 @@ const uploadProfilePicture = async (file) => {
   if (isCloudinaryConfigured()) {
     return await uploadToCloudinary(file, 'investment-app/profile-pictures');
   } else {
-    console.log('Using local storage for profile picture upload');
     return await uploadToLocal(file, 'uploads/profile-pictures');
   }
 };
@@ -109,7 +108,6 @@ const uploadDocument = async (file) => {
   if (isCloudinaryConfigured()) {
     return await uploadToCloudinary(file, 'investment-app/documents');
   } else {
-    console.log('Using local storage for document upload');
     return await uploadToLocal(file, 'uploads/documents');
   }
 };

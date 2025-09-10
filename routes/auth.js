@@ -316,7 +316,6 @@ router.delete("/admin/delete-user/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
     
-    console.log('Admin delete user request:', userId);
     
     if (!userId) {
       return res.status(400).json({
@@ -332,7 +331,7 @@ router.delete("/admin/delete-user/:userId", async (req, res) => {
       });
     }
     
-    console.log('Deleting user:', user.name, user.email);
+    
     
     // Delete user documents from filesystem if they exist
     try {
@@ -344,7 +343,7 @@ router.delete("/admin/delete-user/:userId", async (req, res) => {
         const aadhaarPath = path.join(__dirname, '..', user.documents.aadhaar.filePath);
         if (fs.existsSync(aadhaarPath)) {
           fs.unlinkSync(aadhaarPath);
-          console.log('Deleted Aadhaar document:', aadhaarPath);
+          
         }
       }
       
@@ -353,7 +352,7 @@ router.delete("/admin/delete-user/:userId", async (req, res) => {
         const panPath = path.join(__dirname, '..', user.documents.pan.filePath);
         if (fs.existsSync(panPath)) {
           fs.unlinkSync(panPath);
-          console.log('Deleted PAN document:', panPath);
+          
         }
       }
     } catch (fileError) {
@@ -364,7 +363,7 @@ router.delete("/admin/delete-user/:userId", async (req, res) => {
     // Delete user from database
     await User.findByIdAndDelete(userId);
     
-    console.log('User deleted successfully:', user.name);
+    
     
     res.status(200).json({
       message: 'User deleted successfully',
@@ -393,7 +392,7 @@ router.delete("/admin/delete-user/:userId", async (req, res) => {
 // Get recent users for admin dashboard
 router.get("/admin/recent-users", async (req, res) => {
   try {
-    console.log('Recent users request received');
+    
     
     // Get recent users (last 10, sorted by join date)
     const recentUsers = await User.find({})
@@ -401,7 +400,7 @@ router.get("/admin/recent-users", async (req, res) => {
       .sort({ joinDate: -1 }) // Sort by join date descending
       .limit(10);
     
-    console.log(`Found ${recentUsers.length} recent users`);
+    
     
     res.status(200).json({
       message: 'Recent users retrieved successfully',
@@ -419,7 +418,7 @@ router.get("/admin/recent-users", async (req, res) => {
 // Get admin dashboard statistics
 router.get("/admin/stats", async (req, res) => {
   try {
-    console.log('Admin stats request received');
+    
     
     // Get total users count
     const totalUsers = await User.countDocuments();
@@ -463,7 +462,7 @@ router.get("/admin/stats", async (req, res) => {
       platformHealth: 'Excellent'
     };
     
-    console.log('Admin stats calculated:', stats);
+      
     
     res.status(200).json({
       message: 'Admin statistics retrieved successfully',

@@ -35,7 +35,7 @@ router.post('/upload',
       try {
         await deleteFromCloudinary(existingDoc.cloudinaryPublicId);
       } catch (error) {
-        console.error('Error deleting old file from Cloudinary:', error);
+       
       }
     }
     
@@ -71,7 +71,7 @@ router.post('/upload',
     try {
       await fs.remove(file.path);
     } catch (cleanupError) {
-      console.error('Error cleaning up temp file:', cleanupError);
+      
     }
     
     res.status(200).json({
@@ -80,14 +80,14 @@ router.post('/upload',
     });
     
   } catch (error) {
-    console.error('Document upload error:', error);
+    
     
     // Clean up uploaded file if there was an error
     if (req.file) {
       try {
         await fs.remove(req.file.path);
       } catch (cleanupError) {
-        console.error('Error cleaning up file:', cleanupError);
+        
       }
     }
     
@@ -108,7 +108,7 @@ router.get('/documents', authenticateUser, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Get documents error:', error);
+    
     res.status(500).json({
       message: 'Internal server error'
     });
@@ -129,7 +129,7 @@ router.get('/admin/pending', authenticateAdmin, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Get pending documents error:', error);
+    
     res.status(500).json({
       message: 'Internal server error'
     });
@@ -162,7 +162,7 @@ router.get('/admin/users', authenticateAdmin, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Get users error:', error);
+    
     res.status(500).json({
       message: 'Internal server error'
     });
@@ -186,8 +186,6 @@ router.post('/admin/verify',
   try {
     const { userId, documentType, action, rejectionReason } = req.body;
     
-    console.log('Document verification request:', { userId, documentType, action, rejectionReason });
-    console.log('Admin info:', req.admin);
     
     if (!userId) {
       return res.status(400).json({
@@ -197,18 +195,17 @@ router.post('/admin/verify',
     
     const user = await User.findById(userId);
     if (!user) {
-      console.log('User not found:', userId);
+     
       return res.status(404).json({
         message: 'User not found'
       });
     }
     
-    console.log('User found:', user.name, user.email);
-    console.log('User documents:', user.documents);
+   
     
     const document = user.documents[documentType];
     if (!document) {
-      console.log('Document not found:', documentType);
+     
       return res.status(404).json({
         message: 'Document not found'
       });
@@ -241,7 +238,7 @@ router.post('/admin/verify',
       updateData.verificationStatus = 'rejected';
     }
     
-    console.log('Update data:', updateData);
+   
     
     const updatedUser = await User.findByIdAndUpdate(
       userId,
@@ -250,15 +247,13 @@ router.post('/admin/verify',
     ).select('-password');
     
     if (!updatedUser) {
-      console.log('Failed to update user:', userId);
+     
       return res.status(500).json({
         message: 'Failed to update user document status'
       });
     }
     
-    console.log('User updated successfully:', updatedUser.name);
-    console.log('Updated document status:', updatedUser.documents[documentType]?.status);
-    console.log('Updated verification status:', updatedUser.verificationStatus);
+   
     
     res.status(200).json({
       message: `Document ${action === 'verify' ? 'verified' : 'rejected'} successfully`,
@@ -266,11 +261,11 @@ router.post('/admin/verify',
     });
     
   } catch (error) {
-    console.error('Document verification error:', error);
+      
     
     // Handle validation errors
     if (error.name === 'ValidationError') {
-      console.error('Validation errors:', error.errors);
+     
       return res.status(400).json({
         message: 'Validation error',
         errors: Object.keys(error.errors).map(key => ({
@@ -342,7 +337,7 @@ router.get('/admin/document/:userId/:documentType', authenticateAdmin, async (re
     fileStream.pipe(res);
     
   } catch (error) {
-    console.error('Get document file error:', error);
+   
     res.status(500).json({
       message: 'Internal server error'
     });

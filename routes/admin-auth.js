@@ -29,7 +29,6 @@ router.post("/login", async (req, res) => {
 
     // Validate input
     if (!email || !password) {
-      console.log('Missing email or password');
       return res.status(400).json({ 
         message: "Email and password are required" 
       });
@@ -37,8 +36,7 @@ router.post("/login", async (req, res) => {
 
     // Check if email matches admin email
     if (email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
-      console.log('Email mismatch:', email.toLowerCase(), 'vs', ADMIN_EMAIL.toLowerCase());
-      return res.status(400).json({ 
+        return res.status(400).json({ 
         message: "Invalid admin credentials" 
       });
     }
@@ -97,32 +95,24 @@ router.post("/login", async (req, res) => {
 // Admin profile route (protected)
 router.get("/profile", async (req, res) => {
   try {
-    console.log('Admin profile request received');
-    console.log('Cookies:', req.cookies);
-    console.log('Headers:', req.headers);
     
     const adminToken = req.cookies.admin_token || req.headers.authorization?.split(' ')[1];
     
-    console.log('Admin token found:', !!adminToken);
     
     if (!adminToken) {
-      console.log('No admin token found');
       return res.status(401).json({ 
         message: "Admin token required" 
       });
     }
     
     const decoded = jwt.verify(adminToken, JWT_SECRET);
-    console.log('Token decoded successfully:', decoded);
     
     if (decoded.role !== 'admin') {
-      console.log('Token role is not admin:', decoded.role);
       return res.status(403).json({ 
         message: "Admin access required" 
       });
     }
     
-    console.log('Admin profile retrieved successfully');
     
     // Check if token is close to expiry (less than 2 hours remaining)
     const tokenExpiry = decoded.exp * 1000; // Convert to milliseconds
@@ -131,7 +121,6 @@ router.get("/profile", async (req, res) => {
     const twoHours = 2 * 60 * 60 * 1000;
     
     if (timeUntilExpiry < twoHours && timeUntilExpiry > 0) {
-      console.log('Token is close to expiry, refreshing...');
       
       // Generate new token
       const newAdminToken = jwt.sign(
@@ -156,7 +145,6 @@ router.get("/profile", async (req, res) => {
         path: '/'
       });
       
-      console.log('Token refreshed successfully');
     }
     
     res.status(200).json({
@@ -170,7 +158,6 @@ router.get("/profile", async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Admin profile error:', error);
     
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({ 
