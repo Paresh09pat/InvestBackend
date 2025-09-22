@@ -4,10 +4,8 @@ const User = require('../models/User');
 // Middleware to verify user authentication
 const authenticateUser = async (req, res, next) => {
   try {
-    const token = req.cookies.token || req.headers.authorization?.split(' ')[1];
+    const token = req.cookies._trdexa_ || req.headers.authorization?.split(' ')[1];
 
-    console.log("token>>>>>", token);
-    console.log("req.cookies.token>>>>>", req.cookies.token);
     if (!token) {
       return res.status(401).json({ 
         message: "Access token required" 
@@ -48,6 +46,7 @@ const authenticateUser = async (req, res, next) => {
 const authenticateAdmin = async (req, res, next) => {
   try {
     const adminToken = req.cookies.admin_token || req.headers.authorization?.split(' ')[1];
+
     
     if (!adminToken) {
       return res.status(401).json({ 

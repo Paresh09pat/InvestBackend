@@ -10,6 +10,7 @@ const {
   isCloudinaryConfigured,
 } = require("../utils/cloudinaryUpload");
 const { authenticateUser } = require("../middleware/auth");
+const { handleMulterError, upload } = require("../config/utils");
 
 const router = express.Router();
 
@@ -18,58 +19,12 @@ router.get("/test", (req, res) => {
   res.json({ message: "Profile routes are working!" });
 });
 
-// Configure multer for temporary file storage
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const uploadDir = path.join(__dirname, "../uploads/temp");
-    fs.ensureDirSync(uploadDir);
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, "profile-" + uniqueSuffix + path.extname(file.originalname));
-  },
-});
-
-const upload = multer({
-  storage: storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
-  },
-  fileFilter: function (req, file, cb) {
-    // Check if file is an image
-    if (file.mimetype.startsWith("image/")) {
-      cb(null, true);
-    } else {
-      cb(new Error("Only image files are allowed for profile pictures"), false);
-    }
-  },
-});
-
-// Test route for upload endpoint (without auth for testing)
 router.post("/test-upload", upload.single("profilePicture"), (req, res) => {
   res.json({
     message: "Test upload route working!",
     file: req.file ? "Present" : "Not present",
   });
 });
-
-// Multer error handler middleware
-const handleMulterError = (err, req, res, next) => {
-  if (err instanceof multer.MulterError) {
-    if (err.code === "LIMIT_FILE_SIZE") {
-      return res
-        .status(400)
-        .json({ message: "File size too large. Maximum size is 5MB." });
-    }
-    return res
-      .status(400)
-      .json({ message: "File upload error: " + err.message });
-  } else if (err) {
-    return res.status(400).json({ message: err.message });
-  }
-  next();
-};
 
 // Upload profile picture
 router.post(
@@ -90,7 +45,6 @@ router.post(
         return res.status(404).json({ message: "User not found" });
       }
 
-    
       // Delete old profile picture if exists
       if (user.profilePicture) {
         try {

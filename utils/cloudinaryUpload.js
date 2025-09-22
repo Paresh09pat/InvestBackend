@@ -1,6 +1,7 @@
 const cloudinary = require('../config/cloudinary');
 const path = require('path');
 const fs = require('fs-extra');
+const multer = require('multer');
 
 // Check if Cloudinary is configured
 const isCloudinaryConfigured = () => {
