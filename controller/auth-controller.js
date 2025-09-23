@@ -2,7 +2,7 @@ const User = require("../models/User");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const fs = require("fs-extra");
-
+const Notification = require("../models/Notification");
 const { generateToken, cookieOptions } = require("../config/utils");
 const {
   uploadProfilePicture,
@@ -151,6 +151,10 @@ const login = async (req, res) => {
 const profile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select("-password");
+    const notifications = await Notification.find({
+      userId: req.user._id,
+      read: false,
+    }).countDocuments();
 
     if (!user) {
       return res.status(404).json({
@@ -160,6 +164,7 @@ const profile = async (req, res) => {
 
     res.status(200).json({
       user: user.toJSON(),
+      notifications,
     });
   } catch (error) {
     console.error("Profile error:", error);
@@ -257,8 +262,6 @@ const updateProfile = async (req, res) => {
     });
   }
 };
-
-
 
 const logout = async (req, res) => {
   res.clearCookie("_trdexa_", cookieOptions);
@@ -381,4 +384,12 @@ const deleteProfilePictureController = async (req, res) => {
   }
 };
 
-module.exports = { register, login, profile, updateProfile, logout, uploadProfilePictureController, deleteProfilePictureController };
+module.exports = {
+  register,
+  login,
+  profile,
+  updateProfile,
+  logout,
+  uploadProfilePictureController,
+  deleteProfilePictureController,
+};

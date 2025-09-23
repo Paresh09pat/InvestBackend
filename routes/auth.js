@@ -5,6 +5,7 @@ const jwt = require("jsonwebtoken");
 const { cookieOptions, upload, handleMulterError } = require("../config/utils");
 const { register, login, profile, updateProfile, logout, uploadProfilePictureController, deleteProfilePictureController } = require("../controller/auth-controller");
 const { authenticateUser } = require("../middleware/auth");
+const notificationRoutes = require("./notification-route");
 
 router.post("/register", register);
 router.post("/login", login);
@@ -20,6 +21,10 @@ router.put("/profile", updateProfile);
 // Logout route
 router.post("/logout", logout);
 
+
+// notification route
+router.use("/notifications", notificationRoutes);
+
 // Upload profile picture route
 router.post(
   "/upload-profile-picture",
@@ -28,6 +33,10 @@ router.post(
   handleMulterError,
   uploadProfilePictureController
 );
+
+
+
+
 
 // Delete profile picture route
 router.delete("/delete-profile-picture", authenticateUser, deleteProfilePictureController);
