@@ -332,6 +332,9 @@ const adminLogout = async (req, res) => {
   });
 };
 
+
+// trader i
+
 module.exports = {
   adminLogin,
   adminProfile,

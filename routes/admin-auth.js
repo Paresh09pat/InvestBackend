@@ -1,6 +1,7 @@
 // server/routes/admin-auth.js
 const express = require("express");
 const { authenticateAdmin } = require("../middleware/auth");
+const { uploadPicture, handleUploadError } = require("../middleware/upload");
 
 const {
   adminLogin,
@@ -9,7 +10,9 @@ const {
   adminDeleteUser,
   adminGetRecentUsers,
   adminGetStats,
+ 
 } = require("../controller/admin-controller");
+const { createTrader, getTraders, getTraderById, updateTrader, deleteTrader } = require("../controller/trader-controller");
 
 const router = express.Router();
 
@@ -30,5 +33,12 @@ router.get("/stats", authenticateAdmin, adminGetStats);
 
 // Admin logout route
 router.post("/logout", adminLogout);
+
+// Trader information
+router.post("/trader", authenticateAdmin, uploadPicture, handleUploadError, createTrader);
+router.get("/traders", authenticateAdmin, getTraders);
+router.get("/trader/:id", authenticateAdmin, getTraderById);
+router.put("/trader/:id", authenticateAdmin, updateTrader);
+router.delete("/trader/:id", authenticateAdmin, deleteTrader);
 
 module.exports = router;
