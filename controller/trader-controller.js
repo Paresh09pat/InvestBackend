@@ -74,11 +74,44 @@ const createTrader = async (req, res) => {
 };
 
 const getTraders = async (req, res) => {
+  const { search } = req.query;
+
   try {
-    const traders = await Trader.find().sort({ createdAt: -1 });
+    let traders;
+
+    if (search) {
+      // Convert search term to number if it's a valid number
+      const searchNumber = !isNaN(search) && !isNaN(parseFloat(search)) ? parseFloat(search) : null;
+      
+      const searchConditions = [
+        { name: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+        { phone: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+        { traderType: { $regex: search, $options: "i" } },
+      ];
+
+      // Add numeric field searches only if search term is a number
+      if (searchNumber !== null) {
+        searchConditions.push(
+          { minInterstRate: searchNumber },
+          { maxInterstRate: searchNumber },
+          { minInvestment: searchNumber },
+          { maxInvestment: searchNumber },
+          { experience: searchNumber }
+        );
+      }
+
+      traders = await Trader.find({
+        $or: searchConditions,
+      }).sort({ createdAt: -1 });
+    } else {
+      traders = await Trader.find().sort({ createdAt: -1 });
+    }
+
     res.status(200).json({
       message: "Traders fetched successfully",
-      traders: traders,
+      traders,
     });
   } catch (error) {
     console.error("Error fetching traders:", error);
