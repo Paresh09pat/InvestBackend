@@ -46,7 +46,7 @@ router.delete("/trader/:id", authenticateAdmin, deleteTrader);
 // Update transaction request (admin only)
 router.put("/updatetransaction-requests/:id", authenticateAdmin, updateTransactionRequest);
 
-// Delete transaction request (admin only)
+// // Delete transaction request(admin only)
 router.delete("/deletetransaction-requests/:id", authenticateAdmin, deleteTransactionRequest);
 
 module.exports = router;

@@ -28,7 +28,4 @@ router.get("/transaction-requests", getTransactionRequests);
 // Get transaction request by ID
 router.get("/transaction-requests/:id", getTransactionRequestById);
 
-// Delete transaction request
-
-
 module.exports = router;
