@@ -1,28 +1,37 @@
-const cloudinary = require('../config/cloudinary');
+const cloudinary = require('../config/cloudinary')
 const path = require('path');
 const fs = require('fs-extra');
 const multer = require('multer');
 
 // Check if Cloudinary is configured
 const isCloudinaryConfigured = () => {
-  return process.env.CLOUDINARY_CLOUD_NAME && 
-         process.env.CLOUDINARY_API_KEY && 
-         process.env.CLOUDINARY_API_SECRET;
+  return process.env.CLOUDINARY_CLOUD_NAME &&
+    process.env.CLOUDINARY_API_KEY &&
+    process.env.CLOUDINARY_API_SECRET;
 };
 
-// Upload image to Cloudinary
-const uploadToCloudinary = async (file, folder = 'investment-app') => {
-  if (!isCloudinaryConfigured()) {
-    throw new Error('Cloudinary is not configured. Please add Cloudinary credentials to your .env file.');
+
+
+const uploadToCloudinary = async (file, folder = "investment-app") => {
+  if (!file) {
+    throw new Error("No file provided for upload");
   }
 
+  if (!file.buffer) {
+    throw new Error("No file buffer provided for upload. Make sure you're using memory storage in multer.");
+  }
+
+  // Convert buffer → base64 string
+  const base64File = `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
+
   try {
-    const result = await cloudinary.uploader.upload(file.path, {
-      folder: folder,
-      resource_type: 'auto',
-      quality: 'auto',
-      fetch_format: 'auto',
+    const result = await cloudinary.uploader.upload(base64File, {
+      folder,
+      resource_type: "auto",
+      quality: "auto",
+      fetch_format: "auto",
     });
+
     
     return {
       public_id: result.public_id,
@@ -33,91 +42,55 @@ const uploadToCloudinary = async (file, folder = 'investment-app') => {
       bytes: result.bytes,
     };
   } catch (error) {
-    console.error('Error:', error);
-    throw new Error('Failed to upload file to Cloudinary');
+    console.error("Cloudinary Upload Error:", error);
+    throw new Error(`Failed to upload file to Cloudinary: ${error.message}`);
   }
 };
 
-// Upload to local storage as fallback
-const uploadToLocal = async (file, folder = 'uploads') => {
-  try {
-    const uploadDir = path.join(__dirname, '..', folder);
-    await fs.ensureDir(uploadDir);
-    
-    // Use different prefixes based on folder type
-    const prefix = folder.includes('profile') ? 'profile' : 'document';
-    const fileName = `${prefix}-${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname)}`;
-    const filePath = path.join(uploadDir, fileName);
-    
-    await fs.copy(file.path, filePath);
-    
-    return {
-      public_id: fileName,
-      secure_url: `/uploads/${fileName}`,
-      format: path.extname(file.originalname).slice(1),
-      width: null,
-      height: null,
-      bytes: file.size,
-      localPath: filePath
-    };
-  } catch (error) {
-    console.error('Error:', error);
-    throw new Error('Failed to upload file locally');
-  }
-};
+
+module.exports = uploadToCloudinary;
+
+
 
 // Delete image from Cloudinary
 const deleteFromCloudinary = async (publicId) => {
-  if (!isCloudinaryConfigured()) {
-    console.warn('Error:', error);
-    return { result: 'ok' };
+  if (!publicId) {
+    throw new Error("No publicId provided for deletion");
   }
 
   try {
-    const result = await cloudinary.uploader.destroy(publicId);
-    return result;
+    const result = await cloudinary.uploader.destroy(publicId, {
+      resource_type: "image", // or "video", or "raw", depending on file type
+    });
+
+    return result; // { result: "ok" } if deleted successfully
   } catch (error) {
-    console.error('Error:', error);
-    throw new Error('Failed to delete file from Cloudinary');
+    console.error("Cloudinary Deletion Error:", error);
+    throw new Error("Failed to delete file from Cloudinary");
   }
 };
 
-// Delete from local storage
-const deleteFromLocal = async (filePath) => {
-  try {
-    if (await fs.pathExists(filePath)) {
-      await fs.remove(filePath);
-    }
-    return { result: 'ok' };
-  } catch (error) {
-    console.error('Error:', error);
-    throw new Error('Failed to delete local file');
-  }
-};
 
 // Upload profile picture (with fallback)
 const uploadProfilePicture = async (file) => {
   if (isCloudinaryConfigured()) {
     return await uploadToCloudinary(file, 'investment-app/profile-pictures');
-  } else {
-    return await uploadToLocal(file, 'uploads/profile-pictures');
   }
 };
 
 // Upload document (with fallback)
 const uploadDocument = async (file) => {
-  if (isCloudinaryConfigured()) {
-    return await uploadToCloudinary(file, 'investment-app/documents');
-  } else {
-    return await uploadToLocal(file, 'uploads/documents');
+
+  if (!isCloudinaryConfigured()) {
+    throw new Error('Cloudinary is not configured. Please add Cloudinary credentials to your .env file.');
   }
+  return await uploadToCloudinary(file, 'investment-app/documents');
+
 };
 
 module.exports = {
   uploadToCloudinary,
-  uploadToLocal,
   deleteFromCloudinary,
-  deleteFromLocal,
   uploadProfilePicture,
   uploadDocument,
   isCloudinaryConfigured,
