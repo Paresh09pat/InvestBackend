@@ -157,41 +157,97 @@ const updateTrader = async (req, res) => {
       maxInvestment,
       experience,
     } = req.body;
-    if (
-      !name ||
-      !email ||
-      !phone ||
-      !description ||
-      !traderType ||
-      !minInterstRate ||
-      !maxInterstRate ||
-      !minInvestment ||
-      !maxInvestment ||
-      !experience
-    ) {
+
+    if (!id) {
       return res.status(400).json({
-        message: "All fields are required",
+        message: "Trader ID is required",
       });
     }
-    const trader = await Trader.findByIdAndUpdate(
+
+    // Check if trader exists
+    const existingTrader = await Trader.findById(id);
+    if (!existingTrader) {
+      return res.status(404).json({
+        message: "Trader not found",
+      });
+    }
+
+    // Build update data object with only provided fields
+    const updateData = {};
+    
+    if (name !== undefined) updateData.name = name;
+    if (email !== undefined) updateData.email = email;
+    if (phone !== undefined) updateData.phone = phone;
+    if (description !== undefined) updateData.description = description;
+    if (traderType !== undefined) updateData.traderType = traderType;
+    if (minInterstRate !== undefined) updateData.minInterstRate = minInterstRate;
+    if (maxInterstRate !== undefined) updateData.maxInterstRate = maxInterstRate;
+    if (minInvestment !== undefined) updateData.minInvestment = minInvestment;
+    if (maxInvestment !== undefined) updateData.maxInvestment = maxInvestment;
+    if (experience !== undefined) updateData.experience = experience;
+
+    // Handle profile picture update if file is uploaded (optional)
+    const file = req.file;
+    if (file) {
+      const uploadResult = await uploadToCloudinary(file);
+      updateData.profilePicture = uploadResult.secure_url;
+    }
+
+    // Check if there's anything to update
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({
+        message: "No valid fields provided for update",
+      });
+    }
+
+    // Validate numeric fields if provided
+    if (minInterstRate !== undefined && (isNaN(minInterstRate) || minInterstRate < 0)) {
+      return res.status(400).json({
+        message: "Minimum interest rate must be a valid positive number",
+      });
+    }
+
+    if (maxInterstRate !== undefined && (isNaN(maxInterstRate) || maxInterstRate < 0)) {
+      return res.status(400).json({
+        message: "Maximum interest rate must be a valid positive number",
+      });
+    }
+
+    if (minInvestment !== undefined && (isNaN(minInvestment) || minInvestment < 0)) {
+      return res.status(400).json({
+        message: "Minimum investment must be a valid positive number",
+      });
+    }
+
+    if (maxInvestment !== undefined && (isNaN(maxInvestment) || maxInvestment < 0)) {
+      return res.status(400).json({
+        message: "Maximum investment must be a valid positive number",
+      });
+    }
+
+    if (experience !== undefined && (isNaN(experience) || experience < 0)) {
+      return res.status(400).json({
+        message: "Experience must be a valid positive number",
+      });
+    }
+
+    // Validate trader type if provided
+    if (traderType !== undefined && !["silver", "gold", "platinum"].includes(traderType)) {
+      return res.status(400).json({
+        message: "Trader type must be 'silver', 'gold', or 'platinum'",
+      });
+    }
+
+    // Update trader with provided fields
+    const updatedTrader = await Trader.findByIdAndUpdate(
       id,
-      {
-        name,
-        email,
-        phone,
-        description,
-        traderType,
-        minInterstRate,
-        maxInterstRate,
-        minInvestment,
-        maxInvestment,
-        experience,
-      },
-      { new: true }
+      updateData,
+      { new: true, runValidators: true }
     );
+
     res.status(200).json({
       message: "Trader updated successfully",
-      trader: trader.toJSON(),
+      trader: updatedTrader.toJSON(),
     });
   } catch (error) {
     console.error("Error updating trader:", error);

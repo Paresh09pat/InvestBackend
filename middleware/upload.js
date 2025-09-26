@@ -49,7 +49,8 @@ const upload = multer({
 
 // Middleware for single file upload
 const uploadSingle = upload.single('document');
-const uploadPicture = upload.single("picture")
+const uploadPicture = upload.single("picture");
+const uploadTransactionImage = upload.single("transactionImage");
 
 // Error handling middleware
 const handleUploadError = (error, req, res, next) => {
@@ -78,5 +79,6 @@ const handleUploadError = (error, req, res, next) => {
 module.exports = {
   uploadSingle,
   handleUploadError,
-  uploadPicture
+  uploadPicture,
+  uploadTransactionImage
 };

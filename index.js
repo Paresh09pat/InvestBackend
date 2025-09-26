@@ -4,6 +4,7 @@ const authRoutes = require("./routes/auth");
 const adminAuthRoutes = require("./routes/admin-auth");
 const documentRoutes = require("./routes/documents");
 const profileRoutes = require("./routes/profile");
+const transactionRoutes = require("./routes/transaction-auth");
 const dotenv = require("dotenv");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
@@ -35,6 +36,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminAuthRoutes);
 app.use("/api/documents", documentRoutes);
 app.use("/api/profile", profileRoutes);
+app.use("/api/transaction", transactionRoutes);
 
 
 // Health check endpoint
