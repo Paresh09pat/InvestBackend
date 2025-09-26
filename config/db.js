@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
+const { createDefaultSubscriptions } = require("../controller/subscription-controller");
 
 dotenv.config();
 
@@ -19,5 +20,7 @@ const connectDB = async () => {
     process.exit(1);
   }
 };
+
+createDefaultSubscriptions();
 
 module.exports = connectDB;

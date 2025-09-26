@@ -9,6 +9,7 @@ const dotenv = require("dotenv");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const path = require("path");
+const { createDefaultSubscriptions } = require("./controller/subscription-controller");
 
 // Load environment variables
 dotenv.config();
@@ -30,6 +31,8 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Serve uploaded files statically
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+
 
 // Routes
 app.use("/api/auth", authRoutes);
