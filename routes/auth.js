@@ -8,6 +8,7 @@ const { authenticateUser } = require("../middleware/auth");
 const notificationRoutes = require("./notification-route");
 const { getDefaultPlans } = require("../controller/subscription-controller");
 const { getTraders } = require("../controller/trader-controller");
+const { getTransactionHistory } = require("../controller/transactionhistory-controller");
 
 router.post("/register", register);
 router.post("/login", login);
@@ -35,6 +36,11 @@ router.post(
   handleMulterError,
   uploadProfilePictureController
 );
+
+
+// get user transaction history
+router.get("/transaction-history", authenticateUser, getTransactionHistory);
+
 
 
 
