@@ -14,17 +14,8 @@ const {
 const { createTrader, getTraders, getTraderById, updateTrader, deleteTrader } = require("../controller/trader-controller");
 const { updateTransactionRequest, deleteTransactionRequest } = require("../controller/transreq-controller");
 const { updatePlans, getDefaultPlans, getSinglePlan } = require("../controller/subscription-controller");
-const {
-  createTrader,
-  getTraders,
-  getTraderById,
-  updateTrader,
-  deleteTrader,
-} = require("../controller/trader-controller");
-const {
-  updateTransactionRequest,
-  deleteTransactionRequest,
-} = require("../controller/transreq-controller");
+
+
 const { createTransactionHistory, getTransactionHistory, getTransactionHistoryById  } = require("../controller/transactionhistory-controller");
 
 const router = express.Router();
