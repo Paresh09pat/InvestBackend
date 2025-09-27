@@ -27,7 +27,7 @@ export const defaultPlans = [
   {
     name: "platinum",
     minInvestment: 2500,
-    maxInvestment: 5000,
+    maxInvestment: 10000,
     minReturnRate:10,
     maxReturnRate:15,
     features: [
