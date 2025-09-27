@@ -6,6 +6,7 @@ const { cookieOptions, upload, handleMulterError } = require("../config/utils");
 const { register, login, profile, updateProfile, logout, uploadProfilePictureController, deleteProfilePictureController } = require("../controller/auth-controller");
 const { authenticateUser } = require("../middleware/auth");
 const notificationRoutes = require("./notification-route");
+const { getTransactionHistory } = require("../controller/transactionhistory-controller");
 
 router.post("/register", register);
 router.post("/login", login);
@@ -33,6 +34,11 @@ router.post(
   handleMulterError,
   uploadProfilePictureController
 );
+
+
+// get user transaction history
+router.get("/transaction-history", authenticateUser, getTransactionHistory);
+
 
 
 

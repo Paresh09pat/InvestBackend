@@ -10,10 +10,19 @@ const {
   adminDeleteUser,
   adminGetRecentUsers,
   adminGetStats,
- 
 } = require("../controller/admin-controller");
-const { createTrader, getTraders, getTraderById, updateTrader, deleteTrader } = require("../controller/trader-controller");
-const { updateTransactionRequest, deleteTransactionRequest } = require("../controller/transreq-controller");
+const {
+  createTrader,
+  getTraders,
+  getTraderById,
+  updateTrader,
+  deleteTrader,
+} = require("../controller/trader-controller");
+const {
+  updateTransactionRequest,
+  deleteTransactionRequest,
+} = require("../controller/transreq-controller");
+const { createTransactionHistory, getTransactionHistory, getTransactionHistoryById  } = require("../controller/transactionhistory-controller");
 
 const router = express.Router();
 
@@ -36,17 +45,49 @@ router.get("/stats", authenticateAdmin, adminGetStats);
 router.post("/logout", adminLogout);
 
 // Trader information
-router.post("/trader", authenticateAdmin, uploadPicture, handleUploadError, createTrader);
+router.post(
+  "/trader",
+  authenticateAdmin,
+  uploadPicture,
+  handleUploadError,
+  createTrader
+);
 router.get("/traders", authenticateAdmin, getTraders);
 router.get("/trader/:id", authenticateAdmin, getTraderById);
-router.put("/trader/:id", authenticateAdmin, uploadPicture, handleUploadError, updateTrader);
+router.put(
+  "/trader/:id",
+  authenticateAdmin,
+  uploadPicture,
+  handleUploadError,
+  updateTrader
+);
 router.delete("/trader/:id", authenticateAdmin, deleteTrader);
 
-
 // Update transaction request (admin only)
-router.put("/updatetransaction-requests/:id", authenticateAdmin, updateTransactionRequest);
+router.put(
+  "/updatetransaction-requests/:id",
+  authenticateAdmin,
+  updateTransactionRequest
+);
 
 // // Delete transaction request(admin only)
-router.delete("/deletetransaction-requests/:id", authenticateAdmin, deleteTransactionRequest);
+router.delete(
+  "/deletetransaction-requests/:id",
+  authenticateAdmin,
+  deleteTransactionRequest
+);
+
+
+router.post("/create-transaction-history", authenticateAdmin, createTransactionHistory);
+
+// get all transaction history
+router.get("/transaction-history", authenticateAdmin, getTransactionHistory);
+
+// get transaction history by id
+router.get("/transaction-history/:id", authenticateAdmin, getTransactionHistoryById);
+
+
+
+
 
 module.exports = router;
