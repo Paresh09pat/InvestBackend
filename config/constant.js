@@ -1,8 +1,10 @@
 export const defaultPlans = [
   {
     name: "silver",
-    minInvestment: 50,
-    maxInvestment: 200,
+    minInvestment: 500,
+    maxInvestment: 999,
+    minReturnRate:3,
+    maxReturnRate:6,
     features: [
       "Basic support",
       "Access to limited traders",
@@ -11,8 +13,10 @@ export const defaultPlans = [
   },
   {
     name: "gold",
-    minInvestment: 201,
-    maxInvestment: 500,
+    minInvestment: 1000,
+    maxInvestment: 2499,
+    minReturnRate:6,
+    maxReturnRate:10,
     features: [
       "Priority support",
       "Access to more traders",
@@ -22,8 +26,10 @@ export const defaultPlans = [
   },
   {
     name: "platinum",
-    minInvestment: 501,
-    maxInvestment: 1000,
+    minInvestment: 2500,
+    maxInvestment: 5000,
+    minReturnRate:10,
+    maxReturnRate:15,
     features: [
       "24/7 dedicated support",
       "Access to all traders",

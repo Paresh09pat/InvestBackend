@@ -3,40 +3,80 @@ const { defaultPlans } = require("../config/constant");
 
 
 const createDefaultSubscriptions = async () => {
-  try {
-    for (let plan of defaultPlans) {
-      const exists = await Subscription.findOne({ name: plan.name });
-      if (!exists) {
-        await Subscription.create(plan);
-        console.log(`Created subscription plan: ${plan.name}`);
-      } else {
-        console.log(`${plan.name} already exists`);
-      }
+    try {
+        for (let plan of defaultPlans) {
+            const exists = await Subscription.findOne({ name: plan.name });
+            if (!exists) {
+                await Subscription.create(plan);
+                console.log(`Created subscription plan: ${plan.name}`);
+            } else {
+                console.log(`${plan.name} already exists`);
+            }
+        }
+    } catch (err) {
+        console.error("Error creating default subscriptions:", err.message);
     }
-  } catch (err) {
-    console.error("Error creating default subscriptions:", err.message);
-  }
 };
 
-const getDefaultPlans = async () => {
-  try {
-    const plans = await Subscription.find();
-    return plans;
-  } catch (err) {
-    console.error("Error fetching default plans:", err.message);
-    return [];
-  }
-};
-
-const updatePlans = async (plans) => {
-  try {
-    for (let plan of plans) {
-      await Subscription.findOneAndUpdate({ name: plan.name }, plan);
-      console.log(`Updated subscription plan: ${plan.name}`);
+const getDefaultPlans = async (req,res) => {
+    try {
+        const plans = await Subscription.find();
+        return res.status(200).json({
+            message: "Subscription plans retrieved successfully",
+            plans,
+        });
+    } catch (err) {
+        console.error("Error fetching default plans:", err.message);
+        return res.status(500).json({
+            message: "Internal server error",
+        });
     }
-  } catch (err) {
-    console.error("Error updating subscription plans:", err.message);
-  }
 };
 
-module.exports = {createDefaultSubscriptions}
+const getSinglePlan = async (req,res)=>{
+    try {
+        const {id} = req.params
+        const plan = await Subscription.findById(id).populate("traders");
+        if (!plan) {
+            return res.status(404).json({
+                message: "Subscription plan not found",
+            });
+        }
+        res.status(200).json({
+            message: "Subscription plan retrieved successfully",
+            plan,
+        });
+    } catch (err) {
+        console.error("Error fetching subscription plan:", err.message);
+    }
+}
+
+
+const updatePlans = async (req, res) => {
+    try {
+        const {id} = req.params
+        const { name, minInvestment, maxInvestment, minReturnRate, maxReturnRate, features } = req.body;
+
+        const updatedPlan = await Subscription.findOneAndUpdate({ name }, {
+            name,
+            minInvestment,
+            maxInvestment,
+            minReturnRate,
+            maxReturnRate,
+            features,
+        });
+        if (!updatedPlan) {
+            return res.status(404).json({
+                message: "Subscription plan not found",
+            });
+        }
+        res.status(200).json({
+            message: "Subscription plan updated successfully",
+            updatedPlan,
+        });
+    } catch (err) {
+        console.error("Error updating subscription plans:", err.message);
+    }
+};
+
+module.exports = { createDefaultSubscriptions,getDefaultPlans,updatePlans,getSinglePlan }

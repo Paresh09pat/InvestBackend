@@ -14,6 +14,7 @@ const {
 } = require("../controller/admin-controller");
 const { createTrader, getTraders, getTraderById, updateTrader, deleteTrader } = require("../controller/trader-controller");
 const { updateTransactionRequest, deleteTransactionRequest } = require("../controller/transreq-controller");
+const { updatePlans, getDefaultPlans, getSinglePlan } = require("../controller/subscription-controller");
 
 const router = express.Router();
 
@@ -48,5 +49,11 @@ router.put("/updatetransaction-requests/:id", authenticateAdmin, updateTransacti
 
 // // Delete transaction request(admin only)
 router.delete("/deletetransaction-requests/:id", authenticateAdmin, deleteTransactionRequest);
+
+// Subscription plans
+router.get("/plans", authenticateAdmin, getDefaultPlans);
+router.get("/plan/:id", authenticateAdmin, getSinglePlan);
+router.put("/plan/:id", authenticateAdmin, updatePlans);
+
 
 module.exports = router;

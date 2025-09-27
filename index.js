@@ -9,7 +9,6 @@ const dotenv = require("dotenv");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const path = require("path");
-const { createDefaultSubscriptions } = require("./controller/subscription-controller");
 
 // Load environment variables
 dotenv.config();
@@ -51,19 +50,6 @@ app.get("/health", (req, res) => {
   });
 });
 
-// Debug endpoint for cookie testing
-app.get("/debug/cookies", (req, res) => {
-  res.status(200).json({
-    cookies: req.cookies,
-    headers: {
-      cookie: req.headers.cookie,
-      'user-agent': req.headers['user-agent'],
-      origin: req.headers.origin,
-      referer: req.headers.referer
-    },
-    environment: process.env.NODE_ENV || 'development'
-  });
-});
 
 // Error handling middleware
 app.use((err, req, res, next) => {

@@ -15,6 +15,12 @@ const subscriptionSchema = new Schema({
     features: [{
         type: String
     }],
+    minReturnRate: {
+        type: Number,
+    },
+    maxReturnRate: {
+        type: Number,
+    },
     traders: [{
         type: Schema.Types.ObjectId,
         ref: "Trader"

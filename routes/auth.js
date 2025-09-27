@@ -6,6 +6,8 @@ const { cookieOptions, upload, handleMulterError } = require("../config/utils");
 const { register, login, profile, updateProfile, logout, uploadProfilePictureController, deleteProfilePictureController } = require("../controller/auth-controller");
 const { authenticateUser } = require("../middleware/auth");
 const notificationRoutes = require("./notification-route");
+const { getDefaultPlans } = require("../controller/subscription-controller");
+const { getTraders } = require("../controller/trader-controller");
 
 router.post("/register", register);
 router.post("/login", login);
@@ -196,5 +198,10 @@ router.get("/admin/stats", async (req, res) => {
     });
   }
 });
+
+// subscription plans
+router.get("/plans", getDefaultPlans);
+
+router.get("/traders", getTraders);
 
 module.exports = router;
