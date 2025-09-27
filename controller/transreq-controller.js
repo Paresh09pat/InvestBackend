@@ -12,7 +12,7 @@ try {
     const transactionImageUrl = uploadResult.secure_url;
 
     // Validate required fields
-    if (!amount || !type || !plan || !walletAddress || !walletTxId || !trader) {
+    if (!amount || !type || !plan || !walletTxId || !trader) {
       return res.status(400).json({
         success: false,
         message:
@@ -50,7 +50,7 @@ try {
       amount,
       type,
       plan,
-      walletAddress,
+      // walletAddress,
       walletTxId,
       transactionImage: transactionImageUrl,
       trader,
