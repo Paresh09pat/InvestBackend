@@ -8,26 +8,24 @@ const documentSchema = new mongoose.Schema({
     },
     originalName: {
         type: String,
-        required: false
     },
     filePath: {
         type: String,
-        required: false
     },
     fileSize: {
         type: Number,
-        required: false
     },
     mimeType: {
         type: String,
-        required: false
     },
     // Cloudinary fields
     cloudinaryPublicId: {
-        type: String
+        type: String,
+        required: true
     },
     cloudinaryUrl: {
-        type: String
+        type: String,
+        required: true
     },
     status: {
         type: String,

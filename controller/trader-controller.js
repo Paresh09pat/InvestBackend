@@ -1,3 +1,4 @@
+const Subscription = require("../models/Subscription");
 const Trader = require("../models/Trader");
 const { uploadToCloudinary } = require("../utils/cloudinaryUpload");
 
@@ -15,8 +16,6 @@ const createTrader = async (req, res) => {
       maxInvestment,
       experience,
     } = req.body;
-    console.log("Boudy>>>", req.body);
-
     if (
       !name ||
       !email ||
@@ -61,6 +60,23 @@ const createTrader = async (req, res) => {
       experience,
       profilePicture,
     });
+
+    const checkTrader = await Subscription.findOne({ name: traderType });
+    if (checkTrader.traders.includes(trader._id)) {
+      return res.status(400).json({
+        message: `Trader with this email already exists in this ${traderType} subscription.`,
+      });
+    }
+    else {
+      const addTrader = await Subscription.findOneAndUpdate({ name: traderType }, {
+        $push: { traders: trader._id },
+      });
+      console.log("addTrader", addTrader);
+    }
+
+
+
+
     res.status(201).json({
       message: "Trader created successfully",
       trader: trader.toJSON(),
@@ -82,7 +98,7 @@ const getTraders = async (req, res) => {
     if (search) {
       // Convert search term to number if it's a valid number
       const searchNumber = !isNaN(search) && !isNaN(parseFloat(search)) ? parseFloat(search) : null;
-      
+
       const searchConditions = [
         { name: { $regex: search, $options: "i" } },
         { email: { $regex: search, $options: "i" } },
@@ -174,7 +190,7 @@ const updateTrader = async (req, res) => {
 
     // Build update data object with only provided fields
     const updateData = {};
-    
+
     if (name !== undefined) updateData.name = name;
     if (email !== undefined) updateData.email = email;
     if (phone !== undefined) updateData.phone = phone;
@@ -245,6 +261,23 @@ const updateTrader = async (req, res) => {
       { new: true, runValidators: true }
     );
 
+    const checkTrader = await Subscription.findOne({ name: updateData.traderType });
+    if (checkTrader.traders.includes(updatedTrader._id)) {
+      checkTrader.traders = checkTrader.traders.filter(trader => trader.toString() !== updatedTrader._id.toString());
+      await checkTrader.save();
+
+      await Subscription.findOneAndUpdate({ name: updateData.traderType }, {
+        $push: { traders: updatedTrader._id },
+      });
+    }
+    else {
+      const addTrader = await Subscription.findOneAndUpdate({ name: updateData.traderType }, {
+        $push: { traders: updatedTrader._id },
+      });
+    }
+
+
+
     res.status(200).json({
       message: "Trader updated successfully",
       trader: updatedTrader.toJSON(),
@@ -267,11 +300,13 @@ const deleteTrader = async (req, res) => {
     }
     await Trader.findByIdAndDelete(id);
     res.status(200).json({
+      success: true,
       message: "Trader deleted successfully",
     });
   } catch (error) {
     console.error("Error deleting trader:", error);
     res.status(500).json({
+      success: false,
       message: "Internal server error. Please try again later.",
     });
   }

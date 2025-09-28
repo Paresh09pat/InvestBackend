@@ -4,7 +4,7 @@ const authRoutes = require("./routes/auth");
 const adminAuthRoutes = require("./routes/admin-auth");
 const documentRoutes = require("./routes/documents");
 const profileRoutes = require("./routes/profile");
-const transactionRoutes = require("./routes/transaction-auth");
+const transactionRoutes = require("./routes/transaction-route");
 const dotenv = require("dotenv");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
@@ -31,6 +31,8 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Serve uploaded files statically
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+
+
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminAuthRoutes);
@@ -48,19 +50,6 @@ app.get("/health", (req, res) => {
   });
 });
 
-// Debug endpoint for cookie testing
-app.get("/debug/cookies", (req, res) => {
-  res.status(200).json({
-    cookies: req.cookies,
-    headers: {
-      cookie: req.headers.cookie,
-      'user-agent': req.headers['user-agent'],
-      origin: req.headers.origin,
-      referer: req.headers.referer
-    },
-    environment: process.env.NODE_ENV || 'development'
-  });
-});
 
 // Error handling middleware
 app.use((err, req, res, next) => {

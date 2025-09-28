@@ -32,6 +32,7 @@ router.post(
     try {
       const { documentType } = req.body;
       const file = req.file;
+      
 
       // Check if user already has a document of this type
       const existingDoc = req.user.documents[documentType];
@@ -42,19 +43,16 @@ router.post(
         } catch (error) {}
       }
 
-      // Upload to Cloudinary or local storage
+      // Upload to Cloudinary
       const uploadResult = await uploadDocument(file);
 
       // Update user document with all required fields
       const documentData = {
-        fileName: file.filename,
         originalName: file.originalname,
-        filePath: file.path,
         fileSize: file.size,
         mimeType: file.mimetype,
         cloudinaryPublicId: uploadResult.public_id,
         cloudinaryUrl: uploadResult.secure_url,
-        localPath: uploadResult.localPath || undefined,
         status: "pending",
         uploadedAt: new Date(),
       };
@@ -70,25 +68,16 @@ router.post(
         { new: true, runValidators: true }
       ).select("-password");
 
-      // Clean up temp file after successful Cloudinary upload
-      try {
-        await fs.remove(file.path);
-      } catch (cleanupError) {}
-
       res.status(200).json({
         message: "Document uploaded successfully",
         user: updatedUser.toJSON(),
       });
     } catch (error) {
-      // Clean up uploaded file if there was an error
-      if (req.file) {
-        try {
-          await fs.remove(req.file.path);
-        } catch (cleanupError) {}
-      }
-
+      console.error("Document upload error:", error);
+      
       res.status(500).json({
-        message: "Internal server error",
+        message: "Failed to upload document",
+        error: process.env.NODE_ENV === "development" ? error.message : undefined
       });
     }
   }

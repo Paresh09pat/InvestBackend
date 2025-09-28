@@ -68,14 +68,10 @@ router.post(
       user.profilePicture = {
         cloudinaryPublicId: uploadResult.public_id,
         cloudinaryUrl: uploadResult.secure_url,
-        localPath: uploadResult.localPath || undefined,
         uploadedAt: new Date(),
       };
 
       await user.save();
-
-      // Clean up temp file
-      await fs.remove(req.file.path);
 
       const response = {
         message: "Profile picture uploaded successfully",

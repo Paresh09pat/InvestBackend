@@ -39,7 +39,7 @@ const transactionRequestSchema = new Schema(
 
     walletAddress: {
       type: String,
-      required: true,
+      // required: true,
     },
     walletTxId: {
       type: String,

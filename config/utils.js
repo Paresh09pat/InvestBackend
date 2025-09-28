@@ -22,18 +22,8 @@ const cookieOptions = {
   path: "/",
 };
 
-// Configure multer for temporary file storage
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const uploadDir = path.join(__dirname, "../uploads/temp");
-    fs.ensureDirSync(uploadDir);
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, "profile-" + uniqueSuffix + path.extname(file.originalname));
-  },
-});
+// Configure multer for memory storage
+const storage = multer.memoryStorage();
 
 const upload = multer({
   storage: storage,

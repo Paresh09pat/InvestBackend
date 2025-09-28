@@ -13,19 +13,23 @@ const {
   uploadTransactionImage,
   handleUploadError,
 } = require("../middleware/upload");
+const { getMyTransactionHistory } = require("../controller/transactionhistory-controller");
 
 // Create transaction request
 router.post(
-  "/create-transaction-request",
+  "/create",
   uploadTransactionImage,
   authenticateUser,
   createTransactionRequest
 );
 
 // Get all transaction requests
-router.get("/transaction-requests", getTransactionRequests);
+router.get("/", getTransactionRequests);
+
+router.get("/history", authenticateUser, getMyTransactionHistory);
 
 // Get transaction request by ID
-router.get("/transaction-requests/:id", getTransactionRequestById);
+router.get("/:id", getTransactionRequestById);
+
 
 module.exports = router;
