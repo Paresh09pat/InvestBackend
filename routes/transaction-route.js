@@ -13,6 +13,7 @@ const {
   uploadTransactionImage,
   handleUploadError,
 } = require("../middleware/upload");
+const { getMyTransactionHistory } = require("../controller/transactionhistory-controller");
 
 // Create transaction request
 router.post(
@@ -24,6 +25,8 @@ router.post(
 
 // Get all transaction requests
 router.get("/", getTransactionRequests);
+
+router.get("/history", authenticateUser, getMyTransactionHistory);
 
 // Get transaction request by ID
 router.get("/:id", getTransactionRequestById);
