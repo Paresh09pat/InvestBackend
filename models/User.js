@@ -4,23 +4,23 @@ const bcrypt = require("bcrypt");
 const documentSchema = new mongoose.Schema({
     fileName: {
         type: String,
-        required: true
+        required: false
     },
     originalName: {
         type: String,
-        required: true
+        required: false
     },
     filePath: {
         type: String,
-        required: true
+        required: false
     },
     fileSize: {
         type: Number,
-        required: true
+        required: false
     },
     mimeType: {
         type: String,
-        required: true
+        required: false
     },
     // Cloudinary fields
     cloudinaryPublicId: {
