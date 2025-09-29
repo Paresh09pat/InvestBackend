@@ -10,6 +10,7 @@ const {
   deleteFromLocal,
   isCloudinaryConfigured,
 } = require("../utils/cloudinaryUpload");
+const Portfolio = require("../models/Portfolio");
 
 const register = async (req, res) => {
   try {
@@ -384,6 +385,22 @@ const deleteProfilePictureController = async (req, res) => {
   }
 };
 
+const getPortfolio = async (req,res)=>{
+  try{
+    const portfolio = await Portfolio.findOne({user:req.user._id});
+    res.status(200).json({
+      message: "Portfolio fetched successfully",
+      portfolio,
+    })
+  }
+  catch(err){
+    console.error(err)
+    res.status(500).json({
+      message: "Internal server error",
+    })
+  }
+}
+
 module.exports = {
   register,
   login,
@@ -392,4 +409,5 @@ module.exports = {
   logout,
   uploadProfilePictureController,
   deleteProfilePictureController,
+  getPortfolio,
 };

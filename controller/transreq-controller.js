@@ -1,3 +1,4 @@
+const Portfolio = require("../models/Portfolio");
 const TransactionRequest = require("../models/TransactionRequest");
 const { uploadToCloudinary } = require("../utils/cloudinaryUpload");
 
@@ -161,7 +162,12 @@ const getTransactionRequestById = async (req, res) => {
   }
 };
 
+const mongoose = require("mongoose");
+
 const updateTransactionRequest = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const { id } = req.params;
     const { type, plan, status, rejectionReason } = req.body;
@@ -173,8 +179,7 @@ const updateTransactionRequest = async (req, res) => {
       });
     }
 
-    // Find the transaction request
-    const transactionRequest = await TransactionRequest.findById(id);
+    const transactionRequest = await TransactionRequest.findById(id).session(session);
     if (!transactionRequest) {
       return res.status(404).json({
         success: false,
@@ -182,58 +187,83 @@ const updateTransactionRequest = async (req, res) => {
       });
     }
 
-    // Validate fields 
+    // Validate fields
     if (type && !["deposit", "withdrawal"].includes(type)) {
-      return res.status(400).json({
-        success: false,
-        message: "Type must be either 'deposit' or 'withdrawal'",
-      });
+      return res.status(400).json({ success: false, message: "Type must be either 'deposit' or 'withdrawal'" });
     }
 
     if (plan && !["silver", "gold", "platinum"].includes(plan)) {
-      return res.status(400).json({
-        success: false,
-        message: "Plan must be either 'silver', 'gold', or 'platinum'",
-      });
+      return res.status(400).json({ success: false, message: "Plan must be either 'silver', 'gold', or 'platinum'" });
     }
 
     if (status && !["pending", "approved", "rejected"].includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: "Status must be either 'pending', 'approved', or 'rejected'",
-      });
+      return res.status(400).json({ success: false, message: "Status must be either 'pending', 'approved', or 'rejected'" });
     }
 
-    // Update only allowed fields
+    // Prepare updates
     const updateData = {};
     if (type) updateData.type = type;
     if (plan) updateData.plan = plan;
     if (status) updateData.status = status;
     if (rejectionReason) updateData.rejectionReason = rejectionReason;
-    // Check if there's anything to update
+
     if (Object.keys(updateData).length === 0) {
       return res.status(400).json({
         success: false,
-        message:
-          "No valid fields provided for update. Only 'type', 'plan', 'status', and 'rejectionReason' are allowed",
+        message: "No valid fields provided for update. Only 'type', 'plan', 'status', and 'rejectionReason' are allowed",
       });
     }
 
-    // Update the transaction request
-    const updatedTransactionRequest =
-      await TransactionRequest.findByIdAndUpdate(id, updateData, {
-        new: true,
-        runValidators: true,
-      })
-        .populate("userId", "name email phone")
-        .populate("trader", "name email traderType");
+    // Update Transaction Request inside transaction
+    const updatedTransactionRequest = await TransactionRequest.findByIdAndUpdate(
+      id,
+      updateData,
+      { new: true, runValidators: true, session }
+    )
+      .populate("userId", "name email phone")
+      .populate("trader", "name email traderType");
+
+    // === PORTFOLIO UPDATE ===
+    if (updateData.status === "approved") {
+      let portfolio = await Portfolio.findOne({ user: updatedTransactionRequest.userId }).session(session);
+
+      if (!portfolio) {
+        // create new portfolio
+        portfolio = new Portfolio({
+          user: updatedTransactionRequest.userId,
+          totalInvested: updatedTransactionRequest.amount,
+          currentValue: updatedTransactionRequest.amount,
+          totalReturns: 0,
+          totalReturnsPercentage: 0,
+        });
+      } else {
+        // deposit increases, withdrawal decreases
+        if (updatedTransactionRequest.type === "deposit") {
+          portfolio.totalInvested += updatedTransactionRequest.amount;
+          portfolio.currentValue += updatedTransactionRequest.amount;
+        } else if (updatedTransactionRequest.type === "withdrawal") {
+          portfolio.totalInvested -= updatedTransactionRequest.amount;
+          portfolio.currentValue -= updatedTransactionRequest.amount;
+        }
+      }
+
+      await portfolio.save({ session });
+    }
+
+    // Commit transaction
+    await session.commitTransaction();
+    session.endSession();
 
     res.status(200).json({
       success: true,
       message: "Transaction request updated successfully",
       data: updatedTransactionRequest,
     });
-} catch (error) {
+
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+
     console.error("Error updating transaction request:", error);
     res.status(500).json({
       success: false,
@@ -242,6 +272,8 @@ const updateTransactionRequest = async (req, res) => {
     });
   }
 };
+
+
 
 const deleteTransactionRequest = async (req, res) => {
   try {

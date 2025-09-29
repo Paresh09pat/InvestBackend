@@ -2,7 +2,8 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
 const User = require("../models/User");
-const {uploadToCloudinary,deleteFromCloudinary} = require("../utils/cloudinaryUpload");
+const { uploadToCloudinary, deleteFromCloudinary } = require("../utils/cloudinaryUpload");
+const Portfolio = require("../models/Portfolio");
 
 dotenv.config();
 
@@ -110,9 +111,9 @@ const adminLogin = async (req, res) => {
 
 const adminProfile = async (req, res) => {
   try {
-    
+
     const decoded = req.admin
-  
+
     // Check if token is close to expiry (less than 2 hours remaining)
     const tokenExpiry = decoded.exp * 1000; // Convert to milliseconds
     const now = Date.now();
@@ -135,7 +136,7 @@ const adminProfile = async (req, res) => {
       );
 
 
-   
+
       res.cookie("admin_token", newAdminToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
@@ -180,13 +181,13 @@ const adminProfile = async (req, res) => {
 
 const updateAdmin = async (req, res) => {
   try {
-    
+
     const { currentPassword, newPassword } = req.body;
     const pic = req.file;
 
     const admin = await User.findOne({ email: req.admin.email });
-  
-    
+
+
     if (!admin) {
       return res.status(404).json({ message: "Admin not found" });
     }
@@ -212,14 +213,14 @@ const updateAdmin = async (req, res) => {
     // Handle profile picture update
     if (pic) {
       const uploadResult = await uploadToCloudinary(pic);
-      
+
       updateData.profilePicture = {
         cloudinaryPublicId: uploadResult.public_id,
         cloudinaryUrl: uploadResult.secure_url,
         uploadedAt: new Date()
-      }; 
+      };
     }
-    
+
 
     // Check if there are any fields to update
     if (Object.keys(updateData).length === 0) {
@@ -227,7 +228,7 @@ const updateAdmin = async (req, res) => {
     }
 
     const updatedAdmin = await User.findByIdAndUpdate(id, updateData, { new: true }).select("-password");
-   
+
 
     return res.status(200).json({
       message: "Admin updated successfully",
@@ -411,6 +412,63 @@ const adminLogout = async (req, res) => {
 };
 
 
+const updatePortfolio = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { totalInvested, currentValue } = req.body;
+
+    if (typeof totalInvested !== "number" || typeof currentValue !== "number") {
+      return res.status(400).json({
+        message: "totalInvested and currentValue must be numbers",
+      });
+    }
+
+    const totalReturns = currentValue - totalInvested;
+    const totalReturnsPercentage = totalInvested
+      ? (totalReturns / totalInvested) * 100
+      : 0; // avoid division by zero
+
+    const portfolio = await Portfolio.findByIdAndUpdate(
+      id,
+      {
+        totalInvested,
+        currentValue,
+        totalReturns,
+        totalReturnsPercentage,
+      },
+      { new: true, runValidators: true }
+    );
+
+    res.status(200).json({
+      message: "Portfolio updated successfully",
+      portfolio,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      message: "Internal server error",
+    });
+  }
+};
+
+const getPortfolioById = async (req, res) => {
+  try {
+
+    const { id } = req.params;
+    const portfolio = await Portfolio.findById(id);
+    res.status(200).json({
+      message: "Portfolio fetched successfully",
+      portfolio,
+    })
+  }
+  catch (err) {
+    console.error(err)
+    res.status(500).json({
+      message: "Internal server error",
+    })
+  }
+}
+
 // trader i
 
 module.exports = {
@@ -421,4 +479,6 @@ module.exports = {
   adminDeleteUser,
   adminGetRecentUsers,
   adminGetStats,
+  updatePortfolio,
+  getPortfolioById,
 };
