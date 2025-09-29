@@ -10,6 +10,7 @@ const {
   adminDeleteUser,
   adminGetRecentUsers,
   adminGetStats,
+  updateAdmin,
 } = require("../controller/admin-controller");
 const { createTrader, getTraders, getTraderById, updateTrader, deleteTrader } = require("../controller/trader-controller");
 const { updateTransactionRequest, deleteTransactionRequest } = require("../controller/transreq-controller");
@@ -24,7 +25,9 @@ const router = express.Router();
 router.post("/login", adminLogin);
 
 // Admin profile route (protected)
-router.get("/profile", adminProfile);
+router.get("/profile", authenticateAdmin, adminProfile);
+
+router.put("/update", authenticateAdmin, uploadPicture, handleUploadError, updateAdmin);
 
 // Admin delete user route (protected)
 router.delete("/delete-user/:userId", authenticateAdmin, adminDeleteUser);

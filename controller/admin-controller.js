@@ -2,6 +2,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
 const User = require("../models/User");
+const {uploadToCloudinary,deleteFromCloudinary} = require("../utils/cloudinaryUpload");
 
 dotenv.config();
 
@@ -20,6 +21,25 @@ try {
   console.error("Error hashing admin password:", error);
   hashedAdminPassword = bcrypt.hashSync("admin123", 10); // fallback
 }
+
+const createAdmin = async (req, res) => {
+  try {
+
+    const existingAdmin = await User.findOne({ email: ADMIN_EMAIL });
+    if (existingAdmin) {
+      console.log("admin already exists")
+      return
+    }
+    const admin = await User.create({ name: "Admin", email: ADMIN_EMAIL, password: ADMIN_PASSWORD, role: "admin", phone: "8985632145", isVerified: true, agree: true, verificationStatus: "verified" });
+
+    console.log("admin created successfully")
+  } catch (error) {
+    console.error("Error creating admin:", error);
+
+  }
+}
+
+createAdmin()
 
 const adminLogin = async (req, res) => {
   try {
@@ -90,23 +110,9 @@ const adminLogin = async (req, res) => {
 
 const adminProfile = async (req, res) => {
   try {
-    const adminToken =
-      req.cookies.admin_token || req.headers.authorization?.split(" ")[1];
-
-    if (!adminToken) {
-      return res.status(401).json({
-        message: "Admin token required",
-      });
-    }
-
-    const decoded = jwt.verify(adminToken, JWT_SECRET);
-
-    if (decoded.role !== "admin") {
-      return res.status(403).json({
-        message: "Admin access required",
-      });
-    }
-
+    
+    const decoded = req.admin
+  
     // Check if token is close to expiry (less than 2 hours remaining)
     const tokenExpiry = decoded.exp * 1000; // Convert to milliseconds
     const now = Date.now();
@@ -114,7 +120,7 @@ const adminProfile = async (req, res) => {
     const twoHours = 2 * 60 * 60 * 1000;
 
     if (timeUntilExpiry < twoHours && timeUntilExpiry > 0) {
-      // Generate new token
+
       const newAdminToken = jwt.sign(
         {
           name: "Super Admin",
@@ -128,7 +134,8 @@ const adminProfile = async (req, res) => {
         }
       );
 
-      // Set new cookie
+
+   
       res.cookie("admin_token", newAdminToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
@@ -137,17 +144,21 @@ const adminProfile = async (req, res) => {
         path: "/",
       });
     }
+    const admin = await User.findOne({ email: decoded.email }).select("-password");
 
     res.status(200).json({
       message: "Admin profile retrieved successfully",
       user: {
-        name: decoded.name || "Super Admin",
-        email: decoded.email,
-        role: decoded.role,
-        isAdmin: decoded.isAdmin,
+        _id: admin._id,
+        name: admin.name || "Super Admin",
+        email: admin.email,
+        role: admin.role,
+        isAdmin: admin.isAdmin,
+        profilePicture: admin.profilePicture,
       },
     });
   } catch (error) {
+    console.log("error>>>", error)
     if (error.name === "JsonWebTokenError") {
       return res.status(401).json({
         message: "Invalid admin token",
@@ -160,11 +171,78 @@ const adminProfile = async (req, res) => {
       });
     }
 
+    console.log("error>>>", error)
     res.status(500).json({
       message: "Internal server error",
     });
   }
 };
+
+const updateAdmin = async (req, res) => {
+  try {
+    
+    const { currentPassword, newPassword } = req.body;
+    const pic = req.file;
+
+    const admin = await User.findOne({ email: req.admin.email });
+  
+    
+    if (!admin) {
+      return res.status(404).json({ message: "Admin not found" });
+    }
+
+    const id = admin._id;
+    let updateData = {};
+
+    // Handle password change
+    if (newPassword) {
+      if (!currentPassword) {
+        return res.status(400).json({ message: "Current password is required" });
+      }
+
+      const isMatch = await bcrypt.compare(currentPassword, admin.password);
+      if (!isMatch) {
+        return res.status(400).json({ message: "Current password is incorrect" });
+      }
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      updateData.password = hashedPassword;
+    }
+
+    // Handle profile picture update
+    if (pic) {
+      const uploadResult = await uploadToCloudinary(pic);
+      
+      updateData.profilePicture = {
+        cloudinaryPublicId: uploadResult.public_id,
+        cloudinaryUrl: uploadResult.secure_url,
+        uploadedAt: new Date()
+      }; 
+    }
+    
+
+    // Check if there are any fields to update
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ message: "No valid fields to update" });
+    }
+
+    const updatedAdmin = await User.findByIdAndUpdate(id, updateData, { new: true }).select("-password");
+   
+
+    return res.status(200).json({
+      message: "Admin updated successfully",
+      admin: updatedAdmin,
+    });
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      message: "Internal server error",
+      error: err.message,
+    });
+  }
+};
+
 
 const adminDeleteUser = async (req, res) => {
   try {
@@ -338,6 +416,7 @@ const adminLogout = async (req, res) => {
 module.exports = {
   adminLogin,
   adminProfile,
+  updateAdmin,
   adminLogout,
   adminDeleteUser,
   adminGetRecentUsers,

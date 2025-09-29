@@ -36,6 +36,7 @@ const authenticateUser = async (req, res, next) => {
       });
     }
     
+    console.log("error>>>",error)
     res.status(500).json({
       message: "Internal server error"
     });
@@ -46,8 +47,7 @@ const authenticateUser = async (req, res, next) => {
 const authenticateAdmin = async (req, res, next) => {
   try {
     const adminToken = req.cookies.admin_token || req.headers.authorization?.split(' ')[1];
-
-    
+   
     if (!adminToken) {
       return res.status(401).json({ 
         message: "Admin token required" 
@@ -55,7 +55,8 @@ const authenticateAdmin = async (req, res, next) => {
     }
     
     const decoded = jwt.verify(adminToken, process.env.JWT_SECRET || 'fallback-secret-key');
-    
+      
+
     if (decoded.role !== 'admin') {
       return res.status(403).json({ 
         message: "Admin access required" 
@@ -77,6 +78,8 @@ const authenticateAdmin = async (req, res, next) => {
       });
     }
     
+
+    console.log("error>>>",error)
     res.status(500).json({
       message: "Internal server error"
     });

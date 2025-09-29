@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 const { createDefaultSubscriptions } = require("../controller/subscription-controller");
 
+
 dotenv.config();
 
 const connectDB = async () => {
@@ -21,6 +22,10 @@ const connectDB = async () => {
   }
 };
 
+
+
 createDefaultSubscriptions();
+
+
 
 module.exports = connectDB;
