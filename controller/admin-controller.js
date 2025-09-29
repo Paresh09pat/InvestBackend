@@ -415,26 +415,41 @@ const adminLogout = async (req, res) => {
 const updatePortfolio = async (req, res) => {
   try {
     const { id } = req.params;
-    const { totalInvested, currentValue } = req.body;
+    const { currentValue } = req.body;
 
-    if (typeof totalInvested !== "number" || typeof currentValue !== "number") {
+    if (typeof currentValue !== "number") {
       return res.status(400).json({
-        message: "totalInvested and currentValue must be numbers",
+        message: "currentValue must be a number",
       });
     }
 
+    // Find the existing portfolio to get totalInvested
+    const existingPortfolio = await Portfolio.findById(id);
+    if (!existingPortfolio) {
+      return res.status(404).json({
+        message: "Portfolio not found",
+      });
+    }
+
+    const totalInvested = existingPortfolio.totalInvested;
     const totalReturns = currentValue - totalInvested;
     const totalReturnsPercentage = totalInvested
       ? (totalReturns / totalInvested) * 100
       : 0; // avoid division by zero
 
+    // Add current value to price history
+    const priceHistoryEntry = {
+      value: currentValue,
+      updatedAt: new Date()
+    };
+
     const portfolio = await Portfolio.findByIdAndUpdate(
       id,
       {
-        totalInvested,
         currentValue,
         totalReturns,
         totalReturnsPercentage,
+        $push: { priceHistory: priceHistoryEntry }
       },
       { new: true, runValidators: true }
     );
