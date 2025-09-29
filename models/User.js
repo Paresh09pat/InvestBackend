@@ -20,12 +20,10 @@ const documentSchema = new mongoose.Schema({
     },
     // Cloudinary fields
     cloudinaryPublicId: {
-        type: String,
-        required: true
+        type: String
     },
     cloudinaryUrl: {
-        type: String,
-        required: true
+        type: String
     },
     status: {
         type: String,
