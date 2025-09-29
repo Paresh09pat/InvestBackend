@@ -129,8 +129,80 @@ const getTransactionHistoryById = async (req, res) => {
   }
 };
 
+const getMyTransactionHistory = async (req, res) => {
+  try {
+    const { status, type, date, minAmount, maxAmount, sortBy, sortOrder, page = 1, limit = 10 } = req.query;
+    const filter = {};
+
+    // filtering
+    if (status) filter.status = status;
+    if (type) filter.type = type;
+
+    // filter by specific date (whole day range)
+    if (date) {
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+      filter.createdAt = { $gte: startOfDay, $lte: endOfDay };
+    }
+
+    // filter by amount range
+    if (minAmount || maxAmount) {
+      filter.amount = {};
+      if (minAmount) filter.amount.$gte = Number(minAmount);
+      if (maxAmount) filter.amount.$lte = Number(maxAmount);
+    }
+
+    const userId = req.user._id;
+
+    // sorting (default: newest first)
+    const sortOptions = {};
+    if (sortBy) {
+      sortOptions[sortBy] = sortOrder === "asc" ? 1 : -1;
+    } else {
+      sortOptions.createdAt = -1;
+    }
+
+    // pagination
+    const pageNumber = Number(page);
+    const pageSize = Number(limit);
+    const skip = (pageNumber - 1) * pageSize;
+
+    const [transactionHistory, total] = await Promise.all([
+      TransactionHistory.find({ userId, ...filter })
+        .populate("userId", "name email phone")
+        .populate("txnReqId", "plan type walletAddress walletTxId")
+        .sort(sortOptions)
+        .skip(skip)
+        .limit(pageSize),
+      TransactionHistory.countDocuments({ userId, ...filter }),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: "My transaction history fetched successfully",
+      total,
+      page: pageNumber,
+      limit: pageSize,
+      totalPages: Math.ceil(total / pageSize),
+      data: transactionHistory,
+    });
+  } catch (err) {
+    console.log("Error getting my transaction history:", err);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: err.message,
+    });
+  }
+};
+
+
+
 module.exports = {
   createTransactionHistory,
   getTransactionHistory,
   getTransactionHistoryById,
+  getMyTransactionHistory,
 };
