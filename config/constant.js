@@ -1,4 +1,4 @@
-export const defaultPlans = [
+const defaultPlans = [
   {
     name: "silver",
     minInvestment: 500,
@@ -39,3 +39,5 @@ export const defaultPlans = [
     ]
   }
 ];
+
+module.exports = { defaultPlans };
