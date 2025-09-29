@@ -12,7 +12,7 @@ const {
   adminGetStats,
 } = require("../controller/admin-controller");
 const { createTrader, getTraders, getTraderById, updateTrader, deleteTrader } = require("../controller/trader-controller");
-const { updateTransactionRequest, deleteTransactionRequest } = require("../controller/transreq-controller");
+const { updateTransactionRequest, deleteTransactionRequest, getTransactionRequestById, getTransactionRequests } = require("../controller/transreq-controller");
 const { updatePlans, getDefaultPlans, getSinglePlan } = require("../controller/subscription-controller");
 
 
@@ -71,6 +71,11 @@ router.delete(
   deleteTransactionRequest
 );
 
+// Get transaction request by id
+router.get("/transaction-request", authenticateAdmin, getTransactionRequests);
+
+// Get transaction request by id
+router.get("/transaction-request/:id", authenticateAdmin, getTransactionRequestById);
 
 router.post("/create-transaction-history", authenticateAdmin, createTransactionHistory);
 
