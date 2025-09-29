@@ -14,12 +14,30 @@ const {
   getPortfolioById,
   updatePortfolio,
 } = require("../controller/admin-controller");
-const { createTrader, getTraders, getTraderById, updateTrader, deleteTrader } = require("../controller/trader-controller");
-const { updateTransactionRequest, deleteTransactionRequest, getTransactionRequestById, getTransactionRequests } = require("../controller/transreq-controller");
-const { updatePlans, getDefaultPlans, getSinglePlan } = require("../controller/subscription-controller");
+const {
+  createTrader,
+  getTraders,
+  getTraderById,
+  updateTrader,
+  deleteTrader,
+} = require("../controller/trader-controller");
+const {
+  updateTransactionRequest,
+  deleteTransactionRequest,
+  getTransactionRequestById,
+  getTransactionRequests,
+} = require("../controller/transreq-controller");
+const {
+  updatePlans,
+  getDefaultPlans,
+  getSinglePlan,
+} = require("../controller/subscription-controller");
 
-
-const { createTransactionHistory, getTransactionHistory, getTransactionHistoryById  } = require("../controller/transactionhistory-controller");
+const {
+  createTransactionHistory,
+  getTransactionHistory,
+  getTransactionHistoryById,
+} = require("../controller/transactionhistory-controller");
 
 const router = express.Router();
 
@@ -64,41 +82,40 @@ router.put(
 router.delete("/trader/:id", authenticateAdmin, deleteTrader);
 
 // Update transaction request (admin only)
-router.put(
-  "/update/:id",
-  authenticateAdmin,  
-  updateTransactionRequest
-);
+router.put("/update/:id", authenticateAdmin, updateTransactionRequest);
 
 // // Delete transaction request(admin only)
-router.delete(
-  "/delete/:id",
-  authenticateAdmin,
-  deleteTransactionRequest
-);
+router.delete("/delete/:id", authenticateAdmin, deleteTransactionRequest);
 
 // Get transaction request by id
 router.get("/transaction-request", authenticateAdmin, getTransactionRequests);
 
 // Get transaction request by id
-router.get("/transaction-request/:id", authenticateAdmin, getTransactionRequestById);
+router.get(
+  "/transaction-request/:id",
+  authenticateAdmin,
+  getTransactionRequestById
+);
 
-router.post("/create-transaction-history", authenticateAdmin, createTransactionHistory);
+router.post(
+  "/create-transaction-history",
+  authenticateAdmin,
+  createTransactionHistory
+);
 
 // get all transaction history
 router.get("/transaction-history", authenticateAdmin, getTransactionHistory);
 
 // get transaction history by id
-router.get("/transaction-history/:id", authenticateAdmin, getTransactionHistoryById);
-
-
-
-
+router.get(
+  "/transaction-history/:id",
+  authenticateAdmin,
+  getTransactionHistoryById
+);
 
 // Subscription plans
 router.get("/plans", authenticateAdmin, getDefaultPlans);
 router.get("/plan/:id", authenticateAdmin, getSinglePlan);
 router.put("/plan/:id", authenticateAdmin, updatePlans);
-
 
 module.exports = router;

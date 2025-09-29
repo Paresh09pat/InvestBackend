@@ -3,7 +3,7 @@ const TransactionRequest = require("../models/TransactionRequest");
 const { uploadToCloudinary } = require("../utils/cloudinaryUpload");
 
 const createTransactionRequest = async (req, res) => {
-try {
+  try {
     const { amount, type, plan, walletAddress, trader, walletTxId } = req.body;
     // console.log("Body>>>", req.body);
     const userId = req.user._id;
@@ -80,21 +80,30 @@ try {
 
 const getTransactionRequests = async (req, res) => {
   try {
-    const { page = 1, limit = 10, status, type, plan } = req.query;
+    const { page = 1, limit = 10, status, type, plan, search } = req.query;
 
     // Build filter object
     const filter = {};
 
     if (status) filter.status = status;
     if (type) filter.type = type;
-    if (plan) filter.plan = plan;
+    if (plan) {
+      filter.plan = { $regex: plan, $options: "i" };
+    }
+
+    if (search) {
+      filter.$or = [
+        { plan: { $regex: search, $options: "i" } },
+        { "userId.name": { $regex: search, $options: "i" } },
+      ];
+    }
 
     // Calculate pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     // Get transaction requests with pagination and filtering
     const transactionRequests = await TransactionRequest.find(filter)
-      .populate("userId", "name email phone")
+      .populate("userId", "name email")
       .populate("trader", "name email traderType")
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -123,7 +132,6 @@ const getTransactionRequests = async (req, res) => {
     });
   }
 };
-
 
 const getTransactionRequestById = async (req, res) => {
   try {
@@ -187,6 +195,7 @@ const updateTransactionRequest = async (req, res) => {
       });
     }
 
+    // Validate fields
     // Validate fields
     if (type && !["deposit", "withdrawal"].includes(type)) {
       return res.status(400).json({ success: false, message: "Type must be either 'deposit' or 'withdrawal'" });
@@ -259,11 +268,7 @@ const updateTransactionRequest = async (req, res) => {
       message: "Transaction request updated successfully",
       data: updatedTransactionRequest,
     });
-
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-
     console.error("Error updating transaction request:", error);
     res.status(500).json({
       success: false,
@@ -287,7 +292,7 @@ const deleteTransactionRequest = async (req, res) => {
     }
 
     // Check if user is admin
-    if (req.admin.role !== 'admin') {
+    if (req.admin.role !== "admin") {
       return res.status(403).json({
         success: false,
         message: "Only admins can delete transaction requests",
