@@ -5,9 +5,7 @@ const {
   createTransactionRequest,
   getTransactionRequests,
   getTransactionRequestById,
-  updateTransactionRequest,
-  deleteTransactionRequest,
-  getUserTransactionRequests,
+
 } = require("../controller/transreq-controller");
 const {
   uploadTransactionImage,

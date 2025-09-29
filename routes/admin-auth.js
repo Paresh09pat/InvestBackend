@@ -59,14 +59,14 @@ router.delete("/trader/:id", authenticateAdmin, deleteTrader);
 
 // Update transaction request (admin only)
 router.put(
-  "/updatetransaction-requests/:id",
-  authenticateAdmin,
+  "/update/:id",
+  authenticateAdmin,  
   updateTransactionRequest
 );
 
 // // Delete transaction request(admin only)
 router.delete(
-  "/deletetransaction-requests/:id",
+  "/delete/:id",
   authenticateAdmin,
   deleteTransactionRequest
 );
