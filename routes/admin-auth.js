@@ -12,6 +12,7 @@ const {
   adminGetStats,
   updateAdmin,
   getPortfolioById,
+  updatePortfolio,
 } = require("../controller/admin-controller");
 const { createTrader, getTraders, getTraderById, updateTrader, deleteTrader } = require("../controller/trader-controller");
 const { updateTransactionRequest, deleteTransactionRequest, getTransactionRequestById, getTransactionRequests } = require("../controller/transreq-controller");
@@ -27,7 +28,7 @@ router.post("/login", adminLogin);
 
 // Admin profile route (protected)
 router.get("/profile", authenticateAdmin, adminProfile);
-router.get("/portfolio/:id", authenticateAdmin, getPortfolioById);
+router.route("/portfolio/:id").get(authenticateAdmin, getPortfolioById).put(authenticateAdmin, updatePortfolio)
 
 router.put("/update", authenticateAdmin, uploadPicture, handleUploadError, updateAdmin);
 
