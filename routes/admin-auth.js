@@ -37,6 +37,7 @@ const {
   createTransactionHistory,
   getTransactionHistory,
   getTransactionHistoryById,
+  getMyTransactionHistory,
 } = require("../controller/transactionhistory-controller");
 
 const router = express.Router();
@@ -104,7 +105,7 @@ router.post(
 );
 
 // get all transaction history
-router.get("/transaction-history", authenticateAdmin, getTransactionHistory);
+router.get("/txn-history", authenticateAdmin, getTransactionHistory);
 
 // get transaction history by id
 router.get(
@@ -117,5 +118,8 @@ router.get(
 router.get("/plans", authenticateAdmin, getDefaultPlans);
 router.get("/plan/:id", authenticateAdmin, getSinglePlan);
 router.put("/plan/:id", authenticateAdmin, updatePlans);
+
+// router.get("/txn-history", authenticateAdmin, getMyTransactionHistory);
+
 
 module.exports = router;

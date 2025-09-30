@@ -147,6 +147,12 @@ const adminProfile = async (req, res) => {
     }
     const admin = await User.findOne({ email: decoded.email }).select("-password");
 
+    if (!admin) {
+      return res.status(404).json({
+        message: "Admin user not found",
+      });
+    }
+
     res.status(200).json({
       message: "Admin profile retrieved successfully",
       user: {
