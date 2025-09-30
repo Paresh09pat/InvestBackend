@@ -199,7 +199,6 @@ const updateAdmin = async (req, res) => {
     }
 
     const id = admin._id;
-    let updateData = {};
 
     // Handle password change
     if (newPassword) {
@@ -212,28 +211,23 @@ const updateAdmin = async (req, res) => {
         return res.status(400).json({ message: "Current password is incorrect" });
       }
 
-      const hashedPassword = await bcrypt.hash(newPassword, 10);
-      updateData.password = hashedPassword;
+      admin.password = newPassword;
+
     }
 
     // Handle profile picture update
     if (pic) {
       const uploadResult = await uploadToCloudinary(pic);
 
-      updateData.profilePicture = {
+      admin.profilePicture = {
         cloudinaryPublicId: uploadResult.public_id,
         cloudinaryUrl: uploadResult.secure_url,
         uploadedAt: new Date()
       };
     }
 
-
-    // Check if there are any fields to update
-    if (Object.keys(updateData).length === 0) {
-      return res.status(400).json({ message: "No valid fields to update" });
-    }
-
-    const updatedAdmin = await User.findByIdAndUpdate(id, updateData, { new: true }).select("-password");
+    admin.save()
+    const updatedAdmin = await User.findById(id).select("-password");
 
 
     return res.status(200).json({
