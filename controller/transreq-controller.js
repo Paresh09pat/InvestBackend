@@ -269,7 +269,7 @@ const updateTransactionRequest = async (req, res) => {
 
       await portfolio.save({ session });
     }
-    console.log("updatedTransactionRequest.userId>>>",updatedTransactionRequest.rejectionReason);
+    
 
     await createNotification(updatedTransactionRequest.userId, `Your transaction request has been ${status == "approved" ? "approved" : "rejected due to " + rejectionReason} for amount ${updatedTransactionRequest.amount}`, `Transaction request ${status == "approved" ? "approved" : "rejected"}`)
 
