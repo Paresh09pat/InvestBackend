@@ -76,9 +76,8 @@ const register = async (req, res) => {
     if (error.code === 11000) {
       const field = Object.keys(error.keyValue)[0];
       return res.status(400).json({
-        message: `${
-          field.charAt(0).toUpperCase() + field.slice(1)
-        } already exists`,
+        message: `${field.charAt(0).toUpperCase() + field.slice(1)
+          } already exists`,
       });
     }
 
@@ -152,6 +151,10 @@ const login = async (req, res) => {
 const profile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select("-password");
+
+    const admin = await User.findOne({ email: process.env.ADMIN_EMAIL, role: "admin" }).select("-password").exec()
+   
+    
     const notifications = await Notification.find({
       userId: req.user._id,
       read: false,
@@ -164,7 +167,8 @@ const profile = async (req, res) => {
     }
 
     res.status(200).json({
-      user: user.toJSON(),
+      user: { ...user.toJSON()},
+      adminQR: admin?.profilePicture?.cloudinaryUrl,
       notifications,
     });
   } catch (error) {
@@ -323,7 +327,7 @@ const uploadProfilePictureController = async (req, res) => {
         url: uploadResult.secure_url,
         uploadedAt: user.profilePicture.uploadedAt,
       },
-      user: user,
+      user: user.toJSON(),
     };
 
     res.json(response);
@@ -375,7 +379,7 @@ const deleteProfilePictureController = async (req, res) => {
 
     res.json({
       message: "Profile picture deleted successfully",
-      user: user,
+      user: user.toJSON(),
     });
   } catch (error) {
     console.error("Error:", error);
@@ -385,15 +389,15 @@ const deleteProfilePictureController = async (req, res) => {
   }
 };
 
-const getPortfolio = async (req,res)=>{
-  try{
-    const portfolio = await Portfolio.findOne({user:req.user._id});
+const getPortfolio = async (req, res) => {
+  try {
+    const portfolio = await Portfolio.findOne({ user: req.user._id });
     res.status(200).json({
       message: "Portfolio fetched successfully",
       portfolio,
     })
   }
-  catch(err){
+  catch (err) {
     console.error(err)
     res.status(500).json({
       message: "Internal server error",

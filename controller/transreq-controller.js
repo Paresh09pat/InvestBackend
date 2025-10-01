@@ -1,6 +1,8 @@
+const mongoose = require("mongoose");
 const Portfolio = require("../models/Portfolio");
 const TransactionRequest = require("../models/TransactionRequest");
 const { uploadToCloudinary } = require("../utils/cloudinaryUpload");
+const { createAdminNoitification, createNotification } = require("./notification-controller");
 
 const createTransactionRequest = async (req, res) => {
   const session = await mongoose.startSession();
@@ -56,7 +58,7 @@ const createTransactionRequest = async (req, res) => {
       // walletAddress,
       walletTxId,
       transactionImage: transactionImageUrl,
-      trader,
+      trader: [trader], // Convert to array as per model schema
       status: "pending",
     });
 
@@ -65,7 +67,11 @@ const createTransactionRequest = async (req, res) => {
     // Populate user details for response
     await transactionRequest.populate("userId", "name email phone");
 
-    await createAdminNoitification(`New transaction request created for ${transactionRequest.userId.name}`, `New transaction request created`)
+    await createAdminNoitification(`New transaction request created by ${transactionRequest.userId.name} for amount ${transactionRequest.amount}`, `New transaction request created`)
+
+    // Commit transaction
+    await session.commitTransaction();
+    session.endSession();
 
     res.status(201).json({
       success: true,
@@ -176,8 +182,6 @@ const getTransactionRequestById = async (req, res) => {
   }
 };
 
-const mongoose = require("mongoose");
-const { createAdminNoitification, createNotification } = require("./notification-controller");
 
 const updateTransactionRequest = async (req, res) => {
   const session = await mongoose.startSession();
@@ -265,8 +269,9 @@ const updateTransactionRequest = async (req, res) => {
 
       await portfolio.save({ session });
     }
+    console.log("updatedTransactionRequest.userId>>>",updatedTransactionRequest.rejectionReason);
 
-    await createNotification(updatedTransactionRequest.userId, `Your transaction request has been ${status == "approved" ? "approved" : "rejected due to " + rejectionReason}`, `Transaction request ${status == "approved" ? "approved" : "rejected"}`)
+    await createNotification(updatedTransactionRequest.userId, `Your transaction request has been ${status == "approved" ? "approved" : "rejected due to " + rejectionReason} for amount ${updatedTransactionRequest.amount}`, `Transaction request ${status == "approved" ? "approved" : "rejected"}`)
 
     // Commit transaction
     await session.commitTransaction();

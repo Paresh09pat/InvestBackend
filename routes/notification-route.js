@@ -21,8 +21,8 @@ router.delete("/delete-all", deleteAllNotifications);
 
 // Admin routes
 router.post("/create", createAdminNoitification);
-router.route("/").get(getAllAdminNotifications).delete(deleteAdminNotification);
+router.route("/admin").get(getAllAdminNotifications).delete(deleteAdminNotification);
 
-router.put("/notification/:id", readAdminNotification);
+router.put("/admin/:id", readAdminNotification);
 
 module.exports = router;

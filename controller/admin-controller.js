@@ -4,6 +4,7 @@ const dotenv = require("dotenv");
 const User = require("../models/User");
 const { uploadToCloudinary, deleteFromCloudinary } = require("../utils/cloudinaryUpload");
 const Portfolio = require("../models/Portfolio");
+const Notification = require("../models/Notification");
 
 dotenv.config();
 
@@ -135,6 +136,7 @@ const adminProfile = async (req, res) => {
         }
       );
 
+   
 
 
       res.cookie("admin_token", newAdminToken, {
@@ -145,6 +147,7 @@ const adminProfile = async (req, res) => {
         path: "/",
       });
     }
+    const notifications = await Notification.find({userId:decoded._id,read:false}).countDocuments();
     const admin = await User.findOne({ email: decoded.email }).select("-password");
 
     if (!admin) {
@@ -162,6 +165,7 @@ const adminProfile = async (req, res) => {
         role: admin.role,
         isAdmin: admin.isAdmin,
         profilePicture: admin.profilePicture,
+        notifications,
       },
     });
   } catch (error) {

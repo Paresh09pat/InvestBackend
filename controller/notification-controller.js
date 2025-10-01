@@ -1,4 +1,5 @@
 const Notification = require("../models/Notification");
+const User = require("../models/User");
 
 const createNotification = async (userId, message, title) => {
   const notification = await Notification.create({ userId, message, title });
@@ -73,7 +74,9 @@ const deleteAllNotifications = async (req, res) => {
 
 const createAdminNoitification = async (message, title) => {
   try {
-    const id = req.admin._id;
+
+    const admin = await User.findOne({ email: process.env.ADMIN_EMAIL, role: "admin" })
+    const id = admin._id;
 
     await Notification.create({
       userId: id,
@@ -81,18 +84,10 @@ const createAdminNoitification = async (message, title) => {
       title,
       read: false
     })
-    return res.status(200).json({
-      success: true,
-      message: "Notification created successfully"
-    })
+
   }
   catch (err) {
     console.log("error", err)
-
-    return res.status(500).json({
-      success: false,
-      message: "Internal Server error"
-    })
   }
 }
 
@@ -101,6 +96,8 @@ const getAllAdminNotifications = async (req, res) => {
     const { page } = req.query || 1;
     const { limit } = req.query || 10;
     const skip = (page - 1) * limit;
+
+    
     const notifications = await Notification.find({ userId: req.admin._id })
       .sort({ read: 1, createdAt: -1 })
       .skip(skip)

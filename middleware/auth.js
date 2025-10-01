@@ -64,8 +64,9 @@ const authenticateAdmin = async (req, res, next) => {
         message: "Admin access required" 
       });
     }
-    
-    req.admin = decoded;
+    const admin = await User.findOne({email:decoded.email,role:"admin"})
+
+    req.admin = admin;
     next();
   } catch (error) {
     if (error.name === 'JsonWebTokenError') {
