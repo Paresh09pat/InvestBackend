@@ -69,7 +69,7 @@ const adminLogin = async (req, res) => {
         message: "Invalid admin credentials",
       });
     }
-
+  
     // Generate JWT token
     const adminToken = jwt.sign(
       {

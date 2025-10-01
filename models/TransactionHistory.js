@@ -10,7 +10,7 @@ const transactionHistorySchema = new Schema(
 
     status: {
       type: String,
-      enum: ["pending", "completed", "failed"],
+      enum: ["pending", "approved", "rejected"],
       default: "pending",
     },
 
