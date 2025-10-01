@@ -120,6 +120,7 @@ router.get("/plan/:id", authenticateAdmin, getSinglePlan);
 router.put("/plan/:id", authenticateAdmin, updatePlans);
 
 // router.get("/txn-history", authenticateAdmin, getMyTransactionHistory);
+// notification route
 
 
 module.exports = router;
