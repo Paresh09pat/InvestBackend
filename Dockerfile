@@ -17,7 +17,7 @@ COPY . .
 RUN mkdir -p uploads/documents
 
 # Expose the port the app runs on
-EXPOSE 5000
+EXPOSE 3000
 
 # Create a non-root user to run the app
 RUN addgroup -g 1001 -S nodejs
@@ -29,7 +29,7 @@ USER nodejs
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:5000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
+  CMD node -e "require('http').get('http://localhost:3000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
 
 # Start the application
 CMD ["npm", "start"]
