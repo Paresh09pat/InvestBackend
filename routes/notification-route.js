@@ -1,5 +1,5 @@
 const { Router } = require("express");
-const { authenticateUser } = require("../middleware/auth");
+const { authenticateUser, authenticateAdmin } = require("../middleware/auth");
 const {
   getNotifications,
   readNotification,
@@ -12,14 +12,15 @@ const { deleteNotification, markAllNotificationsAsRead, deleteAllNotifications }
 
 const router = Router();
 
-router.use(authenticateUser);
-router.get("/", getNotifications);
-router.put("/read/:id", readNotification);
-router.delete("/delete/:id", deleteNotification);
-router.put("/mark-all-as-read", markAllNotificationsAsRead);
-router.delete("/delete-all", deleteAllNotifications);
+
+router.get("/", authenticateUser,getNotifications);
+router.put("/read/:id", authenticateUser,readNotification);
+router.delete("/delete/:id", authenticateUser,deleteNotification);
+router.put("/mark-all-as-read", authenticateUser,markAllNotificationsAsRead);
+router.delete("/delete-all", authenticateUser,deleteAllNotifications);
 
 // Admin routes
+router.use(authenticateAdmin)
 router.post("/create", createAdminNoitification);
 router.route("/admin").get(getAllAdminNotifications).delete(deleteAdminNotification);
 
