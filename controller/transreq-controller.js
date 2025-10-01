@@ -3,6 +3,8 @@ const TransactionRequest = require("../models/TransactionRequest");
 const { uploadToCloudinary } = require("../utils/cloudinaryUpload");
 
 const createTransactionRequest = async (req, res) => {
+  const session = await mongoose.startSession();
+  await session.startTransaction()
   try {
     const { amount, type, plan, walletAddress, trader, walletTxId } = req.body;
     // console.log("Body>>>", req.body);
@@ -58,10 +60,12 @@ const createTransactionRequest = async (req, res) => {
       status: "pending",
     });
 
-    await transactionRequest.save();
+    await transactionRequest.save({ session });
 
     // Populate user details for response
     await transactionRequest.populate("userId", "name email phone");
+
+    await createAdminNoitification(`New transaction request created for ${transactionRequest.userId.name}`, `New transaction request created`)
 
     res.status(201).json({
       success: true,
@@ -70,6 +74,8 @@ const createTransactionRequest = async (req, res) => {
     });
   } catch (error) {
     console.error("Error creating transaction request:", error);
+    await session.abortTransaction();
+    session.endSession();
     res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -171,6 +177,7 @@ const getTransactionRequestById = async (req, res) => {
 };
 
 const mongoose = require("mongoose");
+const { createAdminNoitification, createNotification } = require("./notification-controller");
 
 const updateTransactionRequest = async (req, res) => {
   const session = await mongoose.startSession();
@@ -259,6 +266,8 @@ const updateTransactionRequest = async (req, res) => {
       await portfolio.save({ session });
     }
 
+    await createNotification(updatedTransactionRequest.userId, `Your transaction request has been ${status == "approved" ? "approved" : "rejected due to " + rejectionReason}`, `Transaction request ${status == "approved" ? "approved" : "rejected"}`)
+
     // Commit transaction
     await session.commitTransaction();
     session.endSession();
@@ -270,6 +279,8 @@ const updateTransactionRequest = async (req, res) => {
     });
   } catch (error) {
     console.error("Error updating transaction request:", error);
+    await session.abortTransaction();
+    session.endSession();
     res.status(500).json({
       success: false,
       message: "Internal server error",

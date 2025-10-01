@@ -13,6 +13,7 @@ const {
   updateAdmin,
   getPortfolioById,
   updatePortfolio,
+  getPortfolios,
 } = require("../controller/admin-controller");
 const {
   createTrader,
@@ -32,6 +33,7 @@ const {
   getDefaultPlans,
   getSinglePlan,
 } = require("../controller/subscription-controller");
+const notificationRoute = require("./notification-route");
 
 const {
   createTransactionHistory,
@@ -47,6 +49,7 @@ router.post("/login", adminLogin);
 
 // Admin profile route (protected)
 router.get("/profile", authenticateAdmin, adminProfile);
+router.route("/portfolios").get(authenticateAdmin, getPortfolios)
 router.route("/portfolio/:id").get(authenticateAdmin, getPortfolioById).put(authenticateAdmin, updatePortfolio)
 
 router.put("/update", authenticateAdmin, uploadPicture, handleUploadError, updateAdmin);
@@ -120,6 +123,8 @@ router.get("/plan/:id", authenticateAdmin, getSinglePlan);
 router.put("/plan/:id", authenticateAdmin, updatePlans);
 
 // router.get("/txn-history", authenticateAdmin, getMyTransactionHistory);
+
+router.use("/notifications",authenticateAdmin,notificationRoute)
 
 
 module.exports = router;

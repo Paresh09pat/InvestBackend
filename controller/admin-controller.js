@@ -466,11 +466,99 @@ const updatePortfolio = async (req, res) => {
   }
 };
 
+const getPortfolios = async (req, res) => {
+  try {
+    const { search = "", page = 1, limit = 10 } = req.query;
+
+    const skip = (page - 1) * limit;
+
+    // Search filter
+    const searchRegex = new RegExp(search, "i");
+    const searchFilter = search
+      ? {
+        $or: [
+          // Portfolio fields (numbers converted to string for regex)
+          { totalInvested: { $regex: searchRegex } },
+          { currentValue: { $regex: searchRegex } },
+          { totalReturns: { $regex: searchRegex } },
+          { totalReturnsPercentage: { $regex: searchRegex } },
+
+          // User fields
+          { "user.name": { $regex: searchRegex } },
+          { "user.email": { $regex: searchRegex } },
+          { "user.phone": { $regex: searchRegex } },
+          { "user.profilePicture": { $regex: searchRegex } },
+        ],
+      }
+      : {};
+
+    const pipeline = [
+      {
+        $lookup: {
+          from: "users",
+          let: { userId: "$user" },
+          pipeline: [
+            { $match: { $expr: { $eq: ["$_id", "$$userId"] } } },
+            { $project: { name: 1, email: 1, phone: 1, profilePicture: 1 } },
+          ],
+          as: "user",
+        },
+      },
+      { $unwind: "$user" },
+
+      ...(search ? [{ $match: searchFilter }] : []),
+
+      { $skip: skip },
+      { $limit: parseInt(limit) },
+    ];
+
+    const results = await Portfolio.aggregate(pipeline);
+
+    // Count for pagination
+    const countPipeline = [
+      {
+        $lookup: {
+          from: "users",
+          let: { userId: "$user" },
+          pipeline: [
+            { $match: { $expr: { $eq: ["$_id", "$$userId"] } } },
+            { $project: { name: 1, email: 1, phone: 1, profilePicture: 1 } },
+          ],
+          as: "user",
+        },
+      },
+      { $unwind: "$user" },
+      ...(search ? [{ $match: searchFilter }] : []),
+      { $count: "total" },
+    ];
+
+    const totalCountResult = await Portfolio.aggregate(countPipeline);
+    const totalCount = totalCountResult[0]?.total || 0;
+
+    res.status(200).json({
+      message: "Portfolio fetched successfully",
+      portfolio: results,
+      pagination: {
+        total: totalCount,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(totalCount / limit),
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      message: "Internal server error",
+      error: err.message,
+    });
+  }
+}
+
 const getPortfolioById = async (req, res) => {
   try {
 
     const { id } = req.params;
-    const portfolio = await Portfolio.findById(id);
+    const portfolio = await Portfolio.findById(id)
     res.status(200).json({
       message: "Portfolio fetched successfully",
       portfolio,
@@ -496,4 +584,5 @@ module.exports = {
   adminGetStats,
   updatePortfolio,
   getPortfolioById,
+  getPortfolios,
 };

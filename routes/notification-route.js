@@ -3,6 +3,10 @@ const { authenticateUser } = require("../middleware/auth");
 const {
   getNotifications,
   readNotification,
+  createAdminNoitification,
+  getAllAdminNotifications,
+  readAdminNotification,
+  deleteAdminNotification,
 } = require("../controller/notification-controller");
 const { deleteNotification, markAllNotificationsAsRead, deleteAllNotifications } = require("../controller/notification-controller");
 
@@ -14,5 +18,11 @@ router.put("/read/:id", readNotification);
 router.delete("/delete/:id", deleteNotification);
 router.put("/mark-all-as-read", markAllNotificationsAsRead);
 router.delete("/delete-all", deleteAllNotifications);
+
+// Admin routes
+router.post("/create", createAdminNoitification);
+router.route("/").get(getAllAdminNotifications).delete(deleteAdminNotification);
+
+router.put("/notification/:id", readAdminNotification);
 
 module.exports = router;
