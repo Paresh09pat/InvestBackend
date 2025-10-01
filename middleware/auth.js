@@ -5,7 +5,7 @@ const User = require('../models/User');
 const authenticateUser = async (req, res, next) => {
   try {
     const token = req.cookies._trdexa_ || req.headers.authorization?.split(' ')[1];
-
+  
     if (!token) {
       return res.status(401).json({ 
         message: "Access token required" 
@@ -14,6 +14,8 @@ const authenticateUser = async (req, res, next) => {
     
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret-key');
     const user = await User.findById(decoded.userId).select('-password');
+
+   
     
     if (!user) {
       return res.status(404).json({ 
