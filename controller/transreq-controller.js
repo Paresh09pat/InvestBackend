@@ -388,10 +388,104 @@ const deleteTransactionRequest = async (req, res) => {
   }
 };
 
+const getMyTransactionRequests = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, status, type, sortBy, sortOrder = 'desc' } = req.query;
+    const userId = req.user._id;
+
+    // Build filter object
+    const filter = { userId };
+    
+    // Add status filter if provided
+    if (status && ['pending', 'approved', 'rejected'].includes(status)) {
+      filter.status = status;
+    }
+    
+    // Add type filter if provided
+    if (type && ['deposit', 'withdrawal'].includes(type)) {
+      filter.type = type;
+    }
+
+    // Build sort object
+    const sort = {};
+    // Map underscore field names to camelCase for MongoDB
+    const fieldMapping = {
+      'created_at': 'createdAt',
+      'updated_at': 'updatedAt'
+    };
+    
+    let finalSortBy = 'createdAt';
+    
+    if (sortBy) {
+      // Convert underscore to camelCase if needed
+      finalSortBy = fieldMapping[sortBy] || sortBy;
+      
+      // Validate sortBy field (only allow certain fields for security)
+      const allowedSortFields = ['createdAt', 'updatedAt', 'amount', 'status', 'type'];
+      if (allowedSortFields.includes(finalSortBy)) {
+        sort[finalSortBy] = sortOrder === 'desc' ? -1 : 1;
+      } else {
+        // Default sort by createdAt if invalid sortBy provided
+        finalSortBy = 'createdAt';
+        sort.createdAt = -1;
+      }
+    } else {
+      // Default sort by createdAt descending
+      sort.createdAt = -1;
+    }
+
+    // Calculate pagination
+    const pageNumber = parseInt(page);
+    const limitNumber = parseInt(limit);
+    const skip = (pageNumber - 1) * limitNumber;
+
+    // Get transaction requests with filters, sorting, and pagination
+    const transactionRequests = await TransactionRequest.find(filter)
+      .sort(sort)
+      .skip(skip)
+      .limit(limitNumber)
+      .populate('userId', 'firstName lastName email')
+      .populate('trader', 'firstName lastName email');
+
+    // Get total count with same filters (for pagination)
+    const total = await TransactionRequest.countDocuments(filter);
+
+    res.status(200).json({
+      success: true,
+      message: "My transaction requests fetched successfully",
+      data: transactionRequests,
+      pagination: {
+        currentPage: pageNumber,
+        totalPages: Math.ceil(total / limitNumber),
+        totalItems: total,
+        itemsPerPage: limitNumber,
+        hasNextPage: pageNumber < Math.ceil(total / limitNumber),
+        hasPrevPage: pageNumber > 1,
+      },
+      filters: {
+        status: status || null,
+        type: type || null,
+      },
+      sorting: {
+        sortBy: finalSortBy,
+        sortOrder: sortOrder || 'desc',
+      },
+    });
+  } catch (error) {
+    console.error("Error getting my transaction requests:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+}
+
 module.exports = {
   createTransactionRequest,
   getTransactionRequests,
   getTransactionRequestById,
   updateTransactionRequest,
   deleteTransactionRequest,
+  getMyTransactionRequests,
 };

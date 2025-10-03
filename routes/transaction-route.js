@@ -5,7 +5,7 @@ const {
   createTransactionRequest,
   getTransactionRequests,
   getTransactionRequestById,
-
+  getMyTransactionRequests,
 } = require("../controller/transreq-controller");
 const {
   uploadTransactionImage,
@@ -22,7 +22,9 @@ router.post(
 );
 
 // Get all transaction requests
-router.get("/", getTransactionRequests);
+router.get("/", authenticateUser,getMyTransactionHistory);
+
+router.get("/requests", authenticateUser, getMyTransactionRequests);
 
 router.get("/history", authenticateUser, getMyTransactionHistory);
 
