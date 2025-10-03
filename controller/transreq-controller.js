@@ -2,13 +2,18 @@ const mongoose = require("mongoose");
 const Portfolio = require("../models/Portfolio");
 const TransactionRequest = require("../models/TransactionRequest");
 const { uploadToCloudinary } = require("../utils/cloudinaryUpload");
-const { createAdminNoitification, createNotification } = require("./notification-controller");
+const {
+  createAdminNoitification,
+  createNotification,
+} = require("./notification-controller");
+const { createTransactionHistory } = require("./transactionhistory-controller");
+const TransactionHistory = require("../models/TransactionHistory");
 
 const createTransactionRequest = async (req, res) => {
   const session = await mongoose.startSession();
-  await session.startTransaction()
+  await session.startTransaction();
   try {
-    const { amount, type, plan, walletAddress, trader, walletTxId } = req.body;
+    const { amount, type, plan, trader, walletTxId } = req.body;
     // console.log("Body>>>", req.body);
     const userId = req.user._id;
     const transactionImage = req.file;
@@ -55,7 +60,7 @@ const createTransactionRequest = async (req, res) => {
       amount,
       type,
       plan,
-      // walletAddress,
+      
       walletTxId,
       transactionImage: transactionImageUrl,
       trader: [trader], // Convert to array as per model schema
@@ -67,7 +72,23 @@ const createTransactionRequest = async (req, res) => {
     // Populate user details for response
     await transactionRequest.populate("userId", "name email phone");
 
-    await createAdminNoitification(`New transaction request created by ${transactionRequest.userId.name} for amount ${transactionRequest.amount}`, `New transaction request created`)
+    await TransactionHistory.create(
+      [
+        {
+          userId: transactionRequest.userId,
+          amount: transactionRequest.amount,
+          type: transactionRequest.type,
+          status: transactionRequest.status,
+          txnReqId: transactionRequest._id,
+        },
+      ],
+      { session }
+    );
+
+    await createAdminNoitification(
+      `New transaction request created by ${transactionRequest.userId.name} for amount ${transactionRequest.amount}`,
+      `New transaction request created`
+    );
 
     // Commit transaction
     await session.commitTransaction();
@@ -182,7 +203,6 @@ const getTransactionRequestById = async (req, res) => {
   }
 };
 
-
 const updateTransactionRequest = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -198,7 +218,9 @@ const updateTransactionRequest = async (req, res) => {
       });
     }
 
-    const transactionRequest = await TransactionRequest.findById(id).session(session);
+    const transactionRequest = await TransactionRequest.findById(id).session(
+      session
+    );
     if (!transactionRequest) {
       return res.status(404).json({
         success: false,
@@ -209,15 +231,24 @@ const updateTransactionRequest = async (req, res) => {
     // Validate fields
     // Validate fields
     if (type && !["deposit", "withdrawal"].includes(type)) {
-      return res.status(400).json({ success: false, message: "Type must be either 'deposit' or 'withdrawal'" });
+      return res.status(400).json({
+        success: false,
+        message: "Type must be either 'deposit' or 'withdrawal'",
+      });
     }
 
     if (plan && !["silver", "gold", "platinum"].includes(plan)) {
-      return res.status(400).json({ success: false, message: "Plan must be either 'silver', 'gold', or 'platinum'" });
+      return res.status(400).json({
+        success: false,
+        message: "Plan must be either 'silver', 'gold', or 'platinum'",
+      });
     }
 
     if (status && !["pending", "approved", "rejected"].includes(status)) {
-      return res.status(400).json({ success: false, message: "Status must be either 'pending', 'approved', or 'rejected'" });
+      return res.status(400).json({
+        success: false,
+        message: "Status must be either 'pending', 'approved', or 'rejected'",
+      });
     }
 
     // Prepare updates
@@ -230,22 +261,26 @@ const updateTransactionRequest = async (req, res) => {
     if (Object.keys(updateData).length === 0) {
       return res.status(400).json({
         success: false,
-        message: "No valid fields provided for update. Only 'type', 'plan', 'status', and 'rejectionReason' are allowed",
+        message:
+          "No valid fields provided for update. Only 'type', 'plan', 'status', and 'rejectionReason' are allowed",
       });
     }
 
     // Update Transaction Request inside transaction
-    const updatedTransactionRequest = await TransactionRequest.findByIdAndUpdate(
-      id,
-      updateData,
-      { new: true, runValidators: true, session }
-    )
-      .populate("userId", "name email phone")
-      .populate("trader", "name email traderType");
+    const updatedTransactionRequest =
+      await TransactionRequest.findByIdAndUpdate(id, updateData, {
+        new: true,
+        runValidators: true,
+        session,
+      })
+        .populate("userId", "name email phone")
+        .populate("trader", "name email traderType");
 
     // === PORTFOLIO UPDATE ===
     if (updateData.status === "approved") {
-      let portfolio = await Portfolio.findOne({ user: updatedTransactionRequest.userId }).session(session);
+      let portfolio = await Portfolio.findOne({
+        user: updatedTransactionRequest.userId,
+      }).session(session);
 
       if (!portfolio) {
         // create new portfolio
@@ -269,9 +304,23 @@ const updateTransactionRequest = async (req, res) => {
 
       await portfolio.save({ session });
     }
-    
 
-    await createNotification(updatedTransactionRequest.userId, `Your transaction request has been ${status == "approved" ? "approved" : "rejected due to " + rejectionReason} for amount ${updatedTransactionRequest.amount}`, `Transaction request ${status == "approved" ? "approved" : "rejected"}`)
+    // Update TransactionHistory status if status is being updated
+    if (updateData.status) {
+      await TransactionHistory.findOneAndUpdate(
+        { txnReqId: id },
+        { status: updateData.status },
+        { session }
+      );
+    }
+
+    await createNotification(
+      updatedTransactionRequest.userId,
+      `Your transaction request has been ${
+        status == "approved" ? "approved" : "rejected due to " + rejectionReason
+      } for amount ${updatedTransactionRequest.amount}`,
+      `Transaction request ${status == "approved" ? "approved" : "rejected"}`
+    );
 
     // Commit transaction
     await session.commitTransaction();
@@ -293,8 +342,6 @@ const updateTransactionRequest = async (req, res) => {
     });
   }
 };
-
-
 
 const deleteTransactionRequest = async (req, res) => {
   try {
