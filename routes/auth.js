@@ -42,11 +42,6 @@ router.post(
 // get user transaction history
 router.get("/transaction-history", authenticateUser, getTransactionHistory);
 
-
-
-
-
-
 // Delete profile picture route
 router.delete("/delete-profile-picture", authenticateUser, deleteProfilePictureController);
 

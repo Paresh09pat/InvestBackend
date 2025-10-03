@@ -26,7 +26,7 @@ const createTransactionRequest = async (req, res) => {
       return res.status(400).json({
         success: false,
         message:
-          "All fields are required: amount, type, plan, walletAddress, walletTxId, and transaction image, trader",
+          "All fields are required: amount, type, plan, walletTxId, and transaction image, trader",
       });
     }
 

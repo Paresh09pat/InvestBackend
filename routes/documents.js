@@ -224,6 +224,13 @@ router.post(
       if (aadhaarStatus === "verified" && panStatus === "verified") {
         updateData.verificationStatus = "verified";
         updateData.isVerified = true;
+        
+        // Generate referral code only if user doesn't already have one
+        if (!user.referralCode && user.verificationStatus !== "verified") {
+          const { generateCode } = require("../utils/uttil");
+          updateData.referralCode = await generateCode(user.name);
+          updateData.referralCodeGeneratedAt = new Date();
+        }
       } else if (action === "reject") {
         updateData.verificationStatus = "rejected";
       }

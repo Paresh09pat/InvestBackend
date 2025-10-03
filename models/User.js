@@ -119,6 +119,14 @@ const userSchema = new mongoose.Schema({
         type: String,
         enum: ['user', 'admin'],
         default: 'user'
+    },
+    referralCode: {
+        type: String,
+        unique: true,
+        sparse: true // Allow multiple null values
+    },
+    referralCodeGeneratedAt: {
+       	type: Date
     }
 }, {
     timestamps: true
