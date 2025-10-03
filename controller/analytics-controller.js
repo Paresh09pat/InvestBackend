@@ -46,8 +46,6 @@ const getComprehensiveDashboard = async (req, res) => {
       verificationStats,
       userRegistrationTrends,
       documentStats,
-      
-      // Financial Analytics
       totalInvestment,
       portfolioStats,
       investmentTrends,
