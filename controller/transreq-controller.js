@@ -13,7 +13,7 @@ const createTransactionRequest = async (req, res) => {
   const session = await mongoose.startSession();
   await session.startTransaction();
   try {
-    const { amount, type, plan, trader, walletAddress, walletTxId } = req.body;
+    const { amount, type, plan, trader, walletTxId } = req.body;
     // console.log("Body>>>", req.body);
     const userId = req.user._id;
     const transactionImage = req.file;
@@ -22,12 +22,11 @@ const createTransactionRequest = async (req, res) => {
     const transactionImageUrl = uploadResult.secure_url;
 
     // Validate required fields
-    if (!amount || !type || !plan || !walletTxId || !trader || !walletAddress) {
+    if (!amount || !type || !plan || !walletTxId || !trader) {
       return res.status(400).json({
         success: false,
         message:
           "All fields are required: amount, type, plan, walletTxId, and transaction image, trader",
-          "All fields are required: amount, type, plan, walletAddress, walletTxId, and transaction image, trader, walletAddress",
       });
     }
 
@@ -61,7 +60,6 @@ const createTransactionRequest = async (req, res) => {
       amount,
       type,
       plan,
-      walletAddress,
       walletTxId,
       transactionImage: transactionImageUrl,
       trader: [trader], // Convert to array as per model schema
@@ -317,8 +315,7 @@ const updateTransactionRequest = async (req, res) => {
 
     await createNotification(
       updatedTransactionRequest.userId,
-      `Your transaction request has been ${
-        status == "approved" ? "approved" : "rejected due to " + rejectionReason
+      `Your transaction request has been ${status == "approved" ? "approved" : "rejected due to " + rejectionReason
       } for amount ${updatedTransactionRequest.amount}`,
       `Transaction request ${status == "approved" ? "approved" : "rejected"}`
     );
@@ -396,12 +393,12 @@ const getMyTransactionRequests = async (req, res) => {
 
     // Build filter object
     const filter = { userId };
-    
+
     // Add status filter if provided
     if (status && ['pending', 'approved', 'rejected'].includes(status)) {
       filter.status = status;
     }
-    
+
     // Add type filter if provided
     if (type && ['deposit', 'withdrawal'].includes(type)) {
       filter.type = type;
@@ -414,13 +411,13 @@ const getMyTransactionRequests = async (req, res) => {
       'created_at': 'createdAt',
       'updated_at': 'updatedAt'
     };
-    
+
     let finalSortBy = 'createdAt';
-    
+
     if (sortBy) {
       // Convert underscore to camelCase if needed
       finalSortBy = fieldMapping[sortBy] || sortBy;
-      
+
       // Validate sortBy field (only allow certain fields for security)
       const allowedSortFields = ['createdAt', 'updatedAt', 'amount', 'status', 'type'];
       if (allowedSortFields.includes(finalSortBy)) {
