@@ -13,7 +13,7 @@ const createTransactionRequest = async (req, res) => {
   const session = await mongoose.startSession();
   await session.startTransaction();
   try {
-    const { amount, type, plan, trader, walletTxId } = req.body;
+    const { amount, type, plan, trader, walletAddress, walletTxId } = req.body;
     // console.log("Body>>>", req.body);
     const userId = req.user._id;
     const transactionImage = req.file;
@@ -22,11 +22,12 @@ const createTransactionRequest = async (req, res) => {
     const transactionImageUrl = uploadResult.secure_url;
 
     // Validate required fields
-    if (!amount || !type || !plan || !walletTxId || !trader) {
+    if (!amount || !type || !plan || !walletTxId || !trader || !walletAddress) {
       return res.status(400).json({
         success: false,
         message:
           "All fields are required: amount, type, plan, walletTxId, and transaction image, trader",
+          "All fields are required: amount, type, plan, walletAddress, walletTxId, and transaction image, trader, walletAddress",
       });
     }
 
@@ -60,7 +61,7 @@ const createTransactionRequest = async (req, res) => {
       amount,
       type,
       plan,
-      
+      walletAddress,
       walletTxId,
       transactionImage: transactionImageUrl,
       trader: [trader], // Convert to array as per model schema
