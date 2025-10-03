@@ -44,6 +44,7 @@ const documentSchema = new mongoose.Schema({
     rejectionReason: {
         type: String
     }
+    
 });
 
 const userSchema = new mongoose.Schema({
