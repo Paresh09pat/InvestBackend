@@ -35,17 +35,16 @@ router.post(
   async (req, res) => {
     try {
       if (!req.file) {
-        return res.status(400).json({ message: "No file uploaded" });
+        return res.status(400).json({ success: false, message: "No file uploaded" });
       }
 
       const user = await User.findById(req.user._id);
       if (!user) {
         // Clean up temp file
         await fs.remove(req.file.path);
-        return res.status(404).json({ message: "User not found" });
+        return res.status(404).json({ success: false, message: "User not found" });
       }
 
-      // Delete old profile picture if exists
       if (user.profilePicture) {
         try {
           if (
@@ -74,6 +73,7 @@ router.post(
       await user.save();
 
       const response = {
+        success: true,
         message: "Profile picture uploaded successfully",
         profilePicture: {
           url: uploadResult.secure_url,
@@ -96,6 +96,7 @@ router.post(
       }
 
       const errorResponse = {
+        success: false,
         message: error.message || "Failed to upload profile picture",
       };
 
@@ -109,11 +110,11 @@ router.delete("/delete-profile-picture", authenticateUser, async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ success: false, message: "User not found" });
     }
 
     if (!user.profilePicture) {
-      return res.status(400).json({ message: "No profile picture to delete" });
+      return res.status(400).json({ success: false, message: "No profile picture to delete" });
     }
 
     // Delete from storage (Cloudinary or local)
@@ -132,12 +133,14 @@ router.delete("/delete-profile-picture", authenticateUser, async (req, res) => {
     await user.save();
 
     res.json({
+      success: true,
       message: "Profile picture deleted successfully",
       user: user,
     });
   } catch (error) {
     console.error("Error:", error);
     res.status(500).json({
+      success: false,
       message: error.message || "Failed to delete profile picture",
     });
   }
