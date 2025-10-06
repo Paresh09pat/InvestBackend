@@ -44,7 +44,7 @@ const documentSchema = new mongoose.Schema({
     rejectionReason: {
         type: String
     }
-    
+
 });
 
 const userSchema = new mongoose.Schema({
@@ -127,20 +127,23 @@ const userSchema = new mongoose.Schema({
         sparse: true // Allow multiple null values
     },
     referralCodeGeneratedAt: {
-       	type: Date
+        type: Date
+    },
+    trustWalletAddress: {
+        type: String
     }
 }, {
     timestamps: true
 });
 
 // Remove password from JSON responses
-userSchema.methods.toJSON = function() {
+userSchema.methods.toJSON = function () {
     const user = this.toObject();
     delete user.password;
     return user;
 };
 
-userSchema.pre("save", async function(next) {
+userSchema.pre("save", async function (next) {
     if (!this.isModified("password")) {
         return next();
     }

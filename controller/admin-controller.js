@@ -419,7 +419,7 @@ const adminLogout = async (req, res) => {
 const updatePortfolio = async (req, res) => {
   try {
     const { id } = req.params;
-    const { currentValue } = req.body;
+    const { currentValue, planName } = req.body;
 
     if (typeof currentValue !== "number") {
       return res.status(400).json({
@@ -427,7 +427,7 @@ const updatePortfolio = async (req, res) => {
       });
     }
 
-    // Find the existing portfolio to get totalInvested
+    // Find the existing portfolio
     const existingPortfolio = await Portfolio.findById(id);
     if (!existingPortfolio) {
       return res.status(404).json({
@@ -435,28 +435,74 @@ const updatePortfolio = async (req, res) => {
       });
     }
 
-    const totalInvested = existingPortfolio.totalInvested;
-    const totalReturns = currentValue - totalInvested;
-    const totalReturnsPercentage = totalInvested
-      ? (totalReturns / totalInvested) * 100
-      : 0; // avoid division by zero
+    // If planName is provided, update specific plan
+    if (planName) {
+      if (!["silver", "gold", "platinum"].includes(planName)) {
+        return res.status(400).json({
+          message: "planName must be one of: silver, gold, platinum",
+        });
+      }
 
-    // Add current value to price history
-    const priceHistoryEntry = {
-      value: currentValue,
-      updatedAt: new Date()
-    };
+      // Find the specific plan
+      const planIndex = existingPortfolio.plans.findIndex(p => p.name === planName);
+      if (planIndex === -1) {
+        return res.status(404).json({
+          message: `Plan ${planName} not found in portfolio`,
+        });
+      }
 
-    const portfolio = await Portfolio.findByIdAndUpdate(
-      id,
-      {
-        currentValue,
-        totalReturns,
-        totalReturnsPercentage,
-        $push: { priceHistory: priceHistoryEntry }
-      },
-      { new: true, runValidators: true }
-    );
+      const plan = existingPortfolio.plans[planIndex];
+      const planInvested = plan.invested || 0;
+      const planReturns = currentValue - planInvested;
+
+      // Update the specific plan
+      existingPortfolio.plans[planIndex].currentValue = currentValue;
+      existingPortfolio.plans[planIndex].returns = planReturns;
+      
+      // Add to plan's price history
+      if (!existingPortfolio.plans[planIndex].priceHistory) {
+        existingPortfolio.plans[planIndex].priceHistory = [];
+      }
+      existingPortfolio.plans[planIndex].priceHistory.push({
+        value: currentValue,
+        updatedAt: new Date()
+      });
+
+      // Recompute portfolio aggregates from all plans
+      existingPortfolio.totalInvested = existingPortfolio.plans.reduce((sum, p) => sum + (p.invested || 0), 0);
+      existingPortfolio.currentValue = existingPortfolio.plans.reduce((sum, p) => sum + (p.currentValue || 0), 0);
+      existingPortfolio.totalReturns = existingPortfolio.currentValue - existingPortfolio.totalInvested;
+      existingPortfolio.totalReturnsPercentage = existingPortfolio.totalInvested
+        ? (existingPortfolio.totalReturns / existingPortfolio.totalInvested) * 100
+        : 0;
+
+    } else {
+      // Update portfolio-wide currentValue (legacy behavior)
+      const totalInvested = existingPortfolio.totalInvested;
+      const totalReturns = currentValue - totalInvested;
+      const totalReturnsPercentage = totalInvested
+        ? (totalReturns / totalInvested) * 100
+        : 0;
+
+      existingPortfolio.currentValue = currentValue;
+      existingPortfolio.totalReturns = totalReturns;
+      existingPortfolio.totalReturnsPercentage = totalReturnsPercentage;
+
+      // Add to all plan price histories if they exist
+      if (existingPortfolio.plans && existingPortfolio.plans.length > 0) {
+        existingPortfolio.plans.forEach(plan => {
+          if (!plan.priceHistory) {
+            plan.priceHistory = [];
+          }
+          plan.priceHistory.push({
+            value: plan.currentValue || 0,
+            updatedAt: new Date()
+          });
+        });
+      }
+    }
+
+    const portfolio = await existingPortfolio.save();
 
     res.status(200).json({
       message: "Portfolio updated successfully",

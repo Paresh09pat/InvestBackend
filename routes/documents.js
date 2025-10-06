@@ -155,13 +155,7 @@ router.get("/admin/users", authenticateAdmin, async (req, res) => {
   }
 });
 
-// Test admin authentication
-router.get("/admin/test-auth", authenticateAdmin, async (req, res) => {
-  res.json({
-    message: "Admin authentication working",
-    admin: req.admin,
-  });
-});
+
 
 // Verify/reject document with rate limiting
 router.post(
@@ -221,7 +215,7 @@ router.post(
             : "rejected"
           : user.documents.pan?.status;
 
-      if (aadhaarStatus === "verified" && panStatus === "verified") {
+      if (aadhaarStatus === "verified" && panStatus === "verified" && user.trustWalletAddress) {
         updateData.verificationStatus = "verified";
         updateData.isVerified = true;
         

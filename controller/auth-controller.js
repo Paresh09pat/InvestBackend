@@ -153,8 +153,8 @@ const profile = async (req, res) => {
     const user = await User.findById(req.user._id).select("-password");
 
     const admin = await User.findOne({ email: process.env.ADMIN_EMAIL, role: "admin" }).select("-password").exec()
-   
-    
+
+
     const notifications = await Notification.find({
       userId: req.user._id,
       read: false,
@@ -167,7 +167,7 @@ const profile = async (req, res) => {
     }
 
     res.status(200).json({
-      user: { ...user.toJSON()},
+      user: { ...user.toJSON() },
       adminQR: admin?.profilePicture?.cloudinaryUrl,
       notifications,
     });
@@ -207,7 +207,8 @@ const updateProfile = async (req, res) => {
       token,
       process.env.JWT_SECRET || "fallback-secret-key"
     );
-    const { name, phone } = req.body; // Removed email from allowed updates
+
+    const { name, phone, trustWalletAddress = null } = req.body;
 
     // Validate required fields
     if (!name || !phone) {
@@ -216,50 +217,62 @@ const updateProfile = async (req, res) => {
       });
     }
 
-    // Find and update user (only name and phone)
+    // Find user first
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    // Prepare update data
+    const updateData = {
+      name: name.trim(),
+      phone: phone.trim(),
+    };
+
+    // Add trust wallet if provided
+    if (trustWalletAddress) {
+      updateData.trustWalletAddress = trustWalletAddress.trim();
+
+      // ✅ If both Aadhaar and PAN are verified, mark user verified
+      if (
+        user.documents?.aadhaar?.status === "verified" &&
+        user.documents?.pan?.status === "verified"
+      ) {
+        updateData.verificationStatus = "verified";
+        updateData.isVerified = true;
+      }
+    }
+
+    // Update user
     const updatedUser = await User.findByIdAndUpdate(
       decoded.userId,
-      {
-        name: name.trim(),
-        phone: phone.trim(),
-        // Email is intentionally excluded for security
-      },
+      updateData,
       {
         new: true,
         runValidators: true,
       }
     ).select("-password");
 
-    if (!updatedUser) {
-      return res.status(404).json({
-        message: "User not found",
-      });
-    }
-
     res.status(200).json({
       message: "Profile updated successfully",
-      user: updatedUser.toJSON(),
+      user: updatedUser,
     });
   } catch (error) {
     console.error("Profile update error:", error);
 
     if (error.name === "JsonWebTokenError") {
-      return res.status(401).json({
-        message: "Invalid token",
-      });
+      return res.status(401).json({ message: "Invalid token" });
     }
 
     if (error.name === "TokenExpiredError") {
-      return res.status(401).json({
-        message: "Token expired",
-      });
+      return res.status(401).json({ message: "Token expired" });
     }
 
     if (error.name === "ValidationError") {
       const messages = Object.values(error.errors).map((err) => err.message);
-      return res.status(400).json({
-        message: messages.join(", "),
-      });
+      return res.status(400).json({ message: messages.join(", ") });
     }
 
     res.status(500).json({
@@ -267,6 +280,8 @@ const updateProfile = async (req, res) => {
     });
   }
 };
+
+
 
 const logout = async (req, res) => {
   res.clearCookie("_trdexa_", cookieOptions);

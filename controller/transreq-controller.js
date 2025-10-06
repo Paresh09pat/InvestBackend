@@ -6,15 +6,14 @@ const {
   createAdminNoitification,
   createNotification,
 } = require("./notification-controller");
-const { createTransactionHistory } = require("./transactionhistory-controller");
 const TransactionHistory = require("../models/TransactionHistory");
+const Subscription = require("../models/Subscription");
 
 const createTransactionRequest = async (req, res) => {
   const session = await mongoose.startSession();
   await session.startTransaction();
   try {
     const { amount, type, plan, trader, walletTxId } = req.body;
-    // console.log("Body>>>", req.body);
     const userId = req.user._id;
     const transactionImage = req.file;
 
@@ -62,7 +61,7 @@ const createTransactionRequest = async (req, res) => {
       plan,
       walletTxId,
       transactionImage: transactionImageUrl,
-      trader: [trader], // Convert to array as per model schema
+      trader: [trader], 
       status: "pending",
     });
 
@@ -208,7 +207,7 @@ const updateTransactionRequest = async (req, res) => {
 
   try {
     const { id } = req.params;
-    const { type, plan, status, rejectionReason } = req.body;
+    const { type, plan, status, rejectionReason, trustWalletAddress } = req.body;
 
     if (!id) {
       return res.status(400).json({
@@ -256,6 +255,8 @@ const updateTransactionRequest = async (req, res) => {
     if (plan) updateData.plan = plan;
     if (status) updateData.status = status;
     if (rejectionReason) updateData.rejectionReason = rejectionReason;
+    if (trustWalletAddress) updateData.walletAddress = trustWalletAddress;
+    
 
     if (Object.keys(updateData).length === 0) {
       return res.status(400).json({
@@ -275,30 +276,142 @@ const updateTransactionRequest = async (req, res) => {
         .populate("userId", "name email phone")
         .populate("trader", "name email traderType");
 
-    // === PORTFOLIO UPDATE ===
     if (updateData.status === "approved") {
+      // Ensure we have the latest plan on the request
+      const planName = updatedTransactionRequest.plan;
+      const txnType = updatedTransactionRequest.type; // deposit | withdrawal
+      const txnAmount = updatedTransactionRequest.amount;
+
+      // Fetch subscription plan to get return rate bounds
+      const subscriptionPlan = await Subscription.findOne({ name: planName }).session(session);
+
       let portfolio = await Portfolio.findOne({
         user: updatedTransactionRequest.userId,
       }).session(session);
 
       if (!portfolio) {
-        // create new portfolio
+        // Initialize a fresh portfolio with plan buckets
+        const plans = ["silver", "gold", "platinum"].map((name) => ({
+          name,
+          invested: 0,
+          currentValue: 0,
+          returns: 0,
+          returnRate: {
+            min: null,
+            max: null,
+          },
+          priceHistory: [],
+        }));
+
+        // Set the active plan's return rates if available
+        const activeIdx = plans.findIndex((p) => p.name === planName);
+        if (activeIdx !== -1 && subscriptionPlan) {
+          plans[activeIdx].returnRate.min = subscriptionPlan.minReturnRate ?? null;
+          plans[activeIdx].returnRate.max = subscriptionPlan.maxReturnRate ?? null;
+        }
+
+        // Apply the transaction to the plan
+        if (activeIdx !== -1) {
+          if (txnType === "deposit") {
+            plans[activeIdx].invested += txnAmount;
+            plans[activeIdx].currentValue += txnAmount;
+            // Add initial price history entry for deposit
+            plans[activeIdx].priceHistory.push({
+              value: txnAmount,
+              updatedAt: new Date(),
+            });
+          } else if (txnType === "withdrawal") {
+            plans[activeIdx].invested = Math.max(0, plans[activeIdx].invested - txnAmount);
+            plans[activeIdx].currentValue = Math.max(0, plans[activeIdx].currentValue - txnAmount);
+            // Add price history entry for withdrawal
+            plans[activeIdx].priceHistory.push({
+              value: plans[activeIdx].currentValue,
+              updatedAt: new Date(),
+            });
+          }
+          plans[activeIdx].returns = plans[activeIdx].currentValue - plans[activeIdx].invested;
+        }
+
+        // Compute portfolio aggregates
+        const totalInvested = plans.reduce((s, p) => s + p.invested, 0);
+        const currentValue = plans.reduce((s, p) => s + p.currentValue, 0);
+        const totalReturns = currentValue - totalInvested;
+        const totalReturnsPercentage = totalInvested ? (totalReturns / totalInvested) * 100 : 0;
+
+        // Set portfolio-level return rate from the active subscription plan
+        const portfolioReturnRate = subscriptionPlan ? {
+          min: subscriptionPlan.minReturnRate,
+          max: subscriptionPlan.maxReturnRate,
+        } : { min: null, max: null };
+
         portfolio = new Portfolio({
           user: updatedTransactionRequest.userId,
-          totalInvested: updatedTransactionRequest.amount,
-          currentValue: updatedTransactionRequest.amount,
-          totalReturns: 0,
-          totalReturnsPercentage: 0,
+          totalInvested,
+          currentValue,
+          totalReturns,
+          totalReturnsPercentage,
+          returnRate: portfolioReturnRate,
+          plans,
         });
       } else {
-        // deposit increases, withdrawal decreases
-        if (updatedTransactionRequest.type === "deposit") {
-          portfolio.totalInvested += updatedTransactionRequest.amount;
-          portfolio.currentValue += updatedTransactionRequest.amount;
-        } else if (updatedTransactionRequest.type === "withdrawal") {
-          portfolio.totalInvested -= updatedTransactionRequest.amount;
-          portfolio.currentValue -= updatedTransactionRequest.amount;
+        // Update the appropriate plan bucket in existing portfolio
+        if (!Array.isArray(portfolio.plans)) {
+          portfolio.plans = [];
         }
+
+        let planBucket = portfolio.plans.find((p) => p.name === planName);
+        if (!planBucket) {
+          planBucket = {
+            name: planName,
+            invested: 0,
+            currentValue: 0,
+            returns: 0,
+            returnRate: {
+              min: subscriptionPlan?.minReturnRate ?? null,
+              max: subscriptionPlan?.maxReturnRate ?? null,
+            },
+            priceHistory: [],
+          };
+          portfolio.plans.push(planBucket);
+        } else {
+          // Update known return bounds if available
+          if (subscriptionPlan) {
+            planBucket.returnRate = planBucket.returnRate || {};
+            if (subscriptionPlan.minReturnRate != null) planBucket.returnRate.min = subscriptionPlan.minReturnRate;
+            if (subscriptionPlan.maxReturnRate != null) planBucket.returnRate.max = subscriptionPlan.maxReturnRate;
+          }
+          // Ensure priceHistory exists
+          if (!planBucket.priceHistory) {
+            planBucket.priceHistory = [];
+          }
+        }
+
+        if (txnType === "deposit") {
+          planBucket.invested += txnAmount;
+          planBucket.currentValue += txnAmount;
+          // Add price history entry for deposit
+          planBucket.priceHistory.push({
+            value: planBucket.currentValue,
+            updatedAt: new Date(),
+          });
+        } else if (txnType === "withdrawal") {
+          planBucket.invested = Math.max(0, (planBucket.invested || 0) - txnAmount);
+          planBucket.currentValue = Math.max(0, (planBucket.currentValue || 0) - txnAmount);
+          // Add price history entry for withdrawal
+          planBucket.priceHistory.push({
+            value: planBucket.currentValue,
+            updatedAt: new Date(),
+          });
+        }
+        planBucket.returns = (planBucket.currentValue || 0) - (planBucket.invested || 0);
+
+        // Recompute aggregates from plan buckets
+        portfolio.totalInvested = portfolio.plans.reduce((s, p) => s + (p.invested || 0), 0);
+        portfolio.currentValue = portfolio.plans.reduce((s, p) => s + (p.currentValue || 0), 0);
+        portfolio.totalReturns = portfolio.currentValue - portfolio.totalInvested;
+        portfolio.totalReturnsPercentage = portfolio.totalInvested
+          ? (portfolio.totalReturns / portfolio.totalInvested) * 100
+          : 0;
       }
 
       await portfolio.save({ session });

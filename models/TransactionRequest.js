@@ -34,7 +34,7 @@ const transactionRequestSchema = new Schema(
     },
     transactionImage: {
       type: String,
-      required: true,
+      // required: true,
     },
 
     walletAddress: {
