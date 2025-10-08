@@ -10,6 +10,7 @@ const transactionRequestSchema = new Schema(
     amount: {
       type: Number,
       required: true,
+      min: [0.01, "Amount must be greater than 0"],
     },
     status: {
       type: String,
@@ -34,18 +35,16 @@ const transactionRequestSchema = new Schema(
     },
     transactionImage: {
       type: String,
-      // required: true,
+      // Required only for deposits, optional for withdrawals
     },
-
     walletAddress: {
-      type: String,
-      // required: true,
-    },
-    walletTxId: {
       type: String,
       required: true,
     },
-
+    walletTxId: {
+      type: String,
+      // Optional for both deposit and withdrawal
+    },
     rejectionReason: {
       type: String,
     },
@@ -54,6 +53,14 @@ const transactionRequestSchema = new Schema(
     timestamps: true,
   }
 );
+
+// Custom validation for transactionImage based on type
+transactionRequestSchema.pre('validate', function(next) {
+  if (this.type === 'deposit' && !this.transactionImage) {
+    this.invalidate('transactionImage', 'Transaction image is required for deposits');
+  }
+  next();
+});
 
 const TransactionRequest = model(
   "TransactionRequest",

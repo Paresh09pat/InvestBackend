@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const Portfolio = require("../models/Portfolio");
 const TransactionRequest = require("../models/TransactionRequest");
+const User = require("../models/User");
 const { uploadToCloudinary } = require("../utils/cloudinaryUpload");
 const {
   createAdminNoitification,
@@ -13,19 +14,52 @@ const createTransactionRequest = async (req, res) => {
   const session = await mongoose.startSession();
   await session.startTransaction();
   try {
-    const { amount, type, plan, trader, walletTxId } = req.body;
+    const { amount, type, plan, trader, walletTxId, walletAddress } = req.body;
     const userId = req.user._id;
     const transactionImage = req.file;
 
-    const uploadResult = await uploadToCloudinary(transactionImage);
-    const transactionImageUrl = uploadResult.secure_url;
-
     // Validate required fields
-    if (!amount || !type || !plan || !walletTxId || !trader) {
+    if (!amount || !type || !plan || !walletAddress || !trader) {
       return res.status(400).json({
         success: false,
         message:
-          "All fields are required: amount, type, plan, walletTxId, and transaction image, trader",
+          "All fields are required: amount, type, plan, walletAddress, and trader",
+      });
+    }
+
+    // Check if user is verified
+    const user = await User.findById(userId).session(session);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (!user.isVerified || user.verificationStatus !== 'verified') {
+      return res.status(403).json({
+        success: false,
+        message: "User must be verified to create transaction requests",
+      });
+    }
+
+    // Validate wallet address matches user's profile
+    if (user.trustWalletAddress && user.trustWalletAddress !== walletAddress) {
+      return res.status(400).json({
+        success: false,
+        message: "Wallet address does not match your registered wallet address",
+      });
+    }
+
+    // Handle transaction image upload (required for deposits, optional for withdrawals)
+    let transactionImageUrl = null;
+    if (transactionImage) {
+      const uploadResult = await uploadToCloudinary(transactionImage);
+      transactionImageUrl = uploadResult.secure_url;
+    } else if (type === 'deposit') {
+      return res.status(400).json({
+        success: false,
+        message: "Transaction image is required for deposits",
       });
     }
 
@@ -59,6 +93,7 @@ const createTransactionRequest = async (req, res) => {
       amount,
       type,
       plan,
+      walletAddress,
       walletTxId,
       transactionImage: transactionImageUrl,
       trader: [trader], 
