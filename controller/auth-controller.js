@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
@@ -11,35 +12,132 @@ const {
   isCloudinaryConfigured,
 } = require("../utils/cloudinaryUpload");
 const Portfolio = require("../models/Portfolio");
+const Referral = require("../models/Referal");
+const { generateCode } = require("../utils/uttil");
+
+// const register = async (req, res) => {
+//   try {
+//     const { name, email, phone, password, agree, referralCode } = req.body;
+
+
+//     if (!name || !email || !phone || !password) {
+//       return res.status(400).json({
+//         message: "All fields are required",
+//       });
+//     }
+
+//     if (password.length < 6) {
+//       return res.status(400).json({
+//         message: "Password must be at least 6 characters long",
+//       });
+//     }
+
+//     if (!agree) {
+//       return res.status(400).json({
+//         message: "You must agree to the terms and conditions",
+//       });
+//     }
+
+
+//     // Check if user already exists
+//     const existingUser = await User.findOne({
+//       $or: [{ email: email.toLowerCase() }, { phone }],
+//     });
+
+//     if (existingUser) {
+//       if (existingUser.email === email.toLowerCase()) {
+//         return res.status(400).json({
+//           message: "User with this email already exists",
+//         });
+//       } else {
+//         return res.status(400).json({
+//           message: "User with this phone number already exists",
+//         });
+//       }
+//     }
+
+//     const user = await User.create({
+//       name: name.trim(),
+//       email: email.toLowerCase().trim(),
+//       phone: phone.trim(),
+//       password: password,
+//       agree
+//     });
+
+//     // Generate JWT token
+//     const token = generateToken(user);
+
+//     // Set HTTP-only cookie
+//     res.cookie("_trdexa_", token, cookieOptions);
+
+//     res.status(201).json({
+//       message: "User created successfully",
+//       user: user.toJSON(),
+//     });
+//   } catch (error) {
+//     console.error("Registration error:", error);
+
+//     // Handle duplicate key errors
+//     if (error.code === 11000) {
+//       const field = Object.keys(error.keyValue)[0];
+//       return res.status(400).json({
+//         message: `${field.charAt(0).toUpperCase() + field.slice(1)
+//           } already exists`,
+//       });
+//     }
+
+//     // Handle validation errors
+//     if (error.name === "ValidationError") {
+//       const messages = Object.values(error.errors).map((err) => err.message);
+//       return res.status(400).json({
+//         message: messages.join(", "),
+//       });
+//     }
+
+//     res.status(500).json({
+//       message: "Internal server error. Please try again later.",
+//     });
+//   }
+// };
 
 const register = async (req, res) => {
-  try {
-    const { name, email, phone, password, agree } = req.body;
+  const session = await mongoose.startSession();
+  await session.startTransaction();
 
+  try {
+    const { name, email, phone, password, agree, referralCode } = req.body;
+
+    // 1️⃣ Validation
     if (!name || !email || !phone || !password) {
-      return res.status(400).json({
-        message: "All fields are required",
-      });
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({ message: "All fields are required" });
     }
 
     if (password.length < 6) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({
         message: "Password must be at least 6 characters long",
       });
     }
 
     if (!agree) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({
         message: "You must agree to the terms and conditions",
       });
     }
 
-    // Check if user already exists
+    // 2️⃣ Check if user already exists
     const existingUser = await User.findOne({
       $or: [{ email: email.toLowerCase() }, { phone }],
-    });
+    }).session(session);
 
     if (existingUser) {
+      await session.abortTransaction();
+      session.endSession();
       if (existingUser.email === email.toLowerCase()) {
         return res.status(400).json({
           message: "User with this email already exists",
@@ -51,37 +149,69 @@ const register = async (req, res) => {
       }
     }
 
-    const user = await User.create({
+    // 3️⃣ Validate referral code if provided
+    let referrer = null;
+    if (referralCode) {
+      console.log("Referral code", referralCode.trim())
+      referrer = await User.findOne({ referralCode: referralCode.trim() }).session(session);
+      if (!referrer) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(400).json({
+          message: "Invalid referral code",
+        });
+      }
+    }
+
+    const user = await User.create([{
       name: name.trim(),
       email: email.toLowerCase().trim(),
       phone: phone.trim(),
       password: password,
       agree,
-    });
+    }], { session });
 
-    // Generate JWT token
-    const token = generateToken(user);
+    const newUser = user[0];
 
-    // Set HTTP-only cookie
+    if (referrer) {
+      const rewardExpiryDays = 30; 
+      await Referral.create([{
+        referrer: referrer._id,
+        referred: newUser._id,
+        rewardExpiresAt: new Date(Date.now() + rewardExpiryDays * 24 * 60 * 60 * 1000),
+        rewardClaimed: false
+      }], { session });
+    }
+
+    // 7️⃣ Commit transaction
+    await session.commitTransaction();
+    session.endSession();
+
+    // 8️⃣ Generate JWT token
+    const token = generateToken(newUser);
+
+    // 9️⃣ Set HTTP-only cookie
     res.cookie("_trdexa_", token, cookieOptions);
 
+    // 🔟 Respond
     res.status(201).json({
       message: "User created successfully",
-      user: user.toJSON(),
+      user: newUser.toJSON(),
     });
   } catch (error) {
     console.error("Registration error:", error);
+    await session.abortTransaction();
+    session.endSession();
 
-    // Handle duplicate key errors
+    // Duplicate key error
     if (error.code === 11000) {
       const field = Object.keys(error.keyValue)[0];
       return res.status(400).json({
-        message: `${field.charAt(0).toUpperCase() + field.slice(1)
-          } already exists`,
+        message: `${field.charAt(0).toUpperCase() + field.slice(1)} already exists`,
       });
     }
 
-    // Handle validation errors
+    // Validation error
     if (error.name === "ValidationError") {
       const messages = Object.values(error.errors).map((err) => err.message);
       return res.status(400).json({
@@ -94,6 +224,7 @@ const register = async (req, res) => {
     });
   }
 };
+
 
 const login = async (req, res) => {
   try {
@@ -166,8 +297,10 @@ const profile = async (req, res) => {
       });
     }
 
+    const referralLink = user.referralCode ? `https://trdexa.com/signup?referralCode=${user.referralCode}` : null;
+
     res.status(200).json({
-      user: { ...user.toJSON() },
+      user: { ...user.toJSON(), referralLink: referralLink },
       adminQR: admin?.profilePicture?.cloudinaryUrl,
       notifications,
     });
@@ -244,6 +377,10 @@ const updateProfile = async (req, res) => {
         updateData.isVerified = true;
       }
     }
+
+    const referalCode = await generateCode(name);
+    updateData.referralCode = referalCode;
+    // updateData.referralCodeGeneratedAt = new Date();
 
     // Update user
     const updatedUser = await User.findByIdAndUpdate(

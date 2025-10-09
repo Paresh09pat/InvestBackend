@@ -5,6 +5,7 @@ const User = require("../models/User");
 const { uploadToCloudinary, deleteFromCloudinary } = require("../utils/cloudinaryUpload");
 const Portfolio = require("../models/Portfolio");
 const Notification = require("../models/Notification");
+const Referral = require("../models/Referal");
 
 dotenv.config();
 
@@ -470,7 +471,7 @@ const updatePortfolio = async (req, res) => {
 
       // Recompute portfolio aggregates from all plans
       existingPortfolio.totalInvested = existingPortfolio.plans.reduce((sum, p) => sum + (p.invested || 0), 0);
-      existingPortfolio.currentValue = existingPortfolio.plans.reduce((sum, p) => sum + (p.currentValue || 0), 0);
+      existingPortfolio.currentValue = existingPortfolio.plans.reduce((sum, p) => sum + (p.currentValue || 0), 0) + (existingPortfolio.referralRewards || 0);
       existingPortfolio.totalReturns = existingPortfolio.currentValue - existingPortfolio.totalInvested;
       existingPortfolio.totalReturnsPercentage = existingPortfolio.totalInvested
         ? (existingPortfolio.totalReturns / existingPortfolio.totalInvested) * 100
@@ -484,9 +485,11 @@ const updatePortfolio = async (req, res) => {
         ? (totalReturns / totalInvested) * 100
         : 0;
 
-      existingPortfolio.currentValue = currentValue;
-      existingPortfolio.totalReturns = totalReturns;
-      existingPortfolio.totalReturnsPercentage = totalReturnsPercentage;
+      existingPortfolio.currentValue = currentValue + (existingPortfolio.referralRewards || 0);
+      existingPortfolio.totalReturns = existingPortfolio.currentValue - existingPortfolio.totalInvested;
+      existingPortfolio.totalReturnsPercentage = existingPortfolio.totalInvested
+        ? (existingPortfolio.totalReturns / existingPortfolio.totalInvested) * 100
+        : 0;
 
       // Add to all plan price histories if they exist
       if (existingPortfolio.plans && existingPortfolio.plans.length > 0) {
@@ -622,6 +625,116 @@ const getPortfolioById = async (req, res) => {
   }
 }
 
+// Add referral reward to portfolio
+const addReferralReward = async (req, res) => {
+  try {
+    const { referrerId, referredId, rewardAmount } = req.body;
+
+    // Validate input
+    if (!referrerId || !referredId || !rewardAmount) {
+      return res.status(400).json({
+        message: "referrerId, referredId, and rewardAmount are required",
+      });
+    }
+
+    if (typeof rewardAmount !== "number" || rewardAmount <= 0) {
+      return res.status(400).json({
+        message: "rewardAmount must be a positive number",
+      });
+    }
+
+    // Find the referral record
+    const referral = await Referral.findOne({
+      referrer: referrerId,
+      referred: referredId,
+      rewardClaimed: false,
+      rewardExpiresAt: { $gt: new Date() }
+    });
+
+    if (!referral) {
+      return res.status(404).json({
+        message: "Valid referral record not found or reward already claimed",
+      });
+    }
+
+    // Find or create portfolio for referrer
+    let portfolio = await Portfolio.findOne({ user: referrerId });
+
+    if (!portfolio) {
+      // Create new portfolio with referral reward
+      portfolio = new Portfolio({
+        user: referrerId,
+        totalInvested: 0,
+        currentValue: rewardAmount,
+        totalReturns: rewardAmount,
+        totalReturnsPercentage: 0,
+        referralRewards: rewardAmount,
+        plans: []
+      });
+    } else {
+      // Update existing portfolio
+      portfolio.referralRewards = (portfolio.referralRewards || 0) + rewardAmount;
+      portfolio.currentValue = (portfolio.currentValue || 0) + rewardAmount;
+      portfolio.totalReturns = portfolio.currentValue - portfolio.totalInvested;
+      portfolio.totalReturnsPercentage = portfolio.totalInvested > 0 
+        ? (portfolio.totalReturns / portfolio.totalInvested) * 100 
+        : 0;
+    }
+
+    await portfolio.save();
+
+    // Mark referral as claimed
+    referral.rewardClaimed = true;
+    await referral.save();
+
+    // Get referrer details for response
+    const referrer = await User.findById(referrerId).select("name email");
+    const referred = await User.findById(referredId).select("name email");
+
+    res.status(200).json({
+      message: "Referral reward added successfully",
+      data: {
+        referrer: referrer,
+        referred: referred,
+        rewardAmount: rewardAmount,
+        portfolio: portfolio
+      }
+    });
+
+  } catch (error) {
+    console.error("Add referral reward error:", error);
+    res.status(500).json({
+      message: "Internal server error",
+      error: error.message
+    });
+  }
+};
+
+// Get pending referral rewards
+const getPendingReferralRewards = async (req, res) => {
+  try {
+    const pendingReferrals = await Referral.find({
+      rewardClaimed: false,
+      rewardExpiresAt: { $gt: new Date() }
+    })
+    .populate("referrer", "name email referralCode")
+    .populate("referred", "name email")
+    .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      message: "Pending referral rewards fetched successfully",
+      data: pendingReferrals
+    });
+
+  } catch (error) {
+    console.error("Get pending referral rewards error:", error);
+    res.status(500).json({
+      message: "Internal server error",
+      error: error.message
+    });
+  }
+};
+
 // trader i
 
 module.exports = {
@@ -635,4 +748,6 @@ module.exports = {
   updatePortfolio,
   getPortfolioById,
   getPortfolios,
+  addReferralReward,
+  getPendingReferralRewards,
 };

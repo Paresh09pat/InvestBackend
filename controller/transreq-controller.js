@@ -9,6 +9,7 @@ const {
 } = require("./notification-controller");
 const TransactionHistory = require("../models/TransactionHistory");
 const Subscription = require("../models/Subscription");
+const Referral = require("../models/Referal");
 
 // const createTransactionRequest = async (req, res) => {
 //   const session = await mongoose.startSession();
@@ -268,13 +269,40 @@ const createTransactionRequest = async (req, res) => {
       { session }
     );
 
-    // ✅ Step 8: Notify admin
+    // ✅ Step 8: Check for referral reward eligibility (first transaction)
+    if (type === "deposit") {
+      // Check if this is the user's first approved transaction
+      const existingApprovedTransactions = await TransactionRequest.countDocuments({
+        userId: userId,
+        status: "approved",
+        type: "deposit"
+      }).session(session);
+
+      if (existingApprovedTransactions === 0) {
+        // This is the first transaction, check for referral
+        const referral = await Referral.findOne({
+          referred: userId,
+          rewardClaimed: false,
+          rewardExpiresAt: { $gt: new Date() }
+        }).session(session);
+
+        if (referral) {
+          // Notify admin about referral reward eligibility
+          await createAdminNoitification(
+            `Referral reward eligible: User ${transactionRequest.userId.name} made first deposit of ${transactionRequest.amount}. Referrer: ${referral.referrer}`,
+            `Referral Reward Eligible`
+          );
+        }
+      }
+    }
+
+    // ✅ Step 9: Notify admin
     await createAdminNoitification(
       `New ${type} request by ${transactionRequest.userId.name} for amount ${transactionRequest.amount}`,
       `New ${type} request`
     );
 
-    // ✅ Step 9: Commit
+    // ✅ Step 10: Commit
     await session.commitTransaction();
     session.endSession();
 
@@ -499,25 +527,22 @@ const updateTransactionRequest = async (req, res) => {
           plans[activeIdx].returnRate.max = subscriptionPlan.maxReturnRate ?? null;
         }
 
-        // Apply the transaction to the plan
         if (activeIdx !== -1) {
           if (txnType === "deposit") {
             plans[activeIdx].invested += txnAmount;
             plans[activeIdx].currentValue += txnAmount;
-            // Add initial price history entry for deposit
             plans[activeIdx].priceHistory.push({
               value: txnAmount,
               updatedAt: new Date(),
             });
           } else if (txnType === "withdrawal") {
-            // For withdrawals, deduct from returns first, then from invested if returns are insufficient
+          
             const currentReturns = plans[activeIdx].currentValue - plans[activeIdx].invested;
             
             if (currentReturns >= txnAmount) {
-              // Sufficient returns - deduct only from currentValue
               plans[activeIdx].currentValue = Math.max(0, plans[activeIdx].currentValue - txnAmount);
             } else {
-              // Insufficient returns - deduct from returns first, then from invested
+             
               plans[activeIdx].currentValue = Math.max(0, plans[activeIdx].currentValue - currentReturns);
               plans[activeIdx].invested = Math.max(0, plans[activeIdx].invested - (txnAmount - currentReturns));
             }
@@ -591,14 +616,12 @@ const updateTransactionRequest = async (req, res) => {
             updatedAt: new Date(),
           });
         } else if (txnType === "withdrawal") {
-          // For withdrawals, deduct from returns first, then from invested if returns are insufficient
+        
           const currentReturns = (planBucket.currentValue || 0) - (planBucket.invested || 0);
           
           if (currentReturns >= txnAmount) {
-            // Sufficient returns - deduct only from currentValue
             planBucket.currentValue = Math.max(0, (planBucket.currentValue || 0) - txnAmount);
           } else {
-            // Insufficient returns - deduct from returns first, then from invested
             planBucket.currentValue = Math.max(0, (planBucket.currentValue || 0) - currentReturns);
             planBucket.invested = Math.max(0, (planBucket.invested || 0) - (txnAmount - currentReturns));
           }
@@ -612,7 +635,7 @@ const updateTransactionRequest = async (req, res) => {
 
         // Recompute aggregates from plan buckets
         portfolio.totalInvested = portfolio.plans.reduce((s, p) => s + (p.invested || 0), 0);
-        portfolio.currentValue = portfolio.plans.reduce((s, p) => s + (p.currentValue || 0), 0);
+        portfolio.currentValue = portfolio.plans.reduce((s, p) => s + (p.currentValue || 0), 0) + (portfolio.referralRewards || 0);
         portfolio.totalReturns = portfolio.currentValue - portfolio.totalInvested;
         portfolio.totalReturnsPercentage = portfolio.totalInvested
           ? (portfolio.totalReturns / portfolio.totalInvested) * 100

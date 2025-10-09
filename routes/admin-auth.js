@@ -14,6 +14,8 @@ const {
   getPortfolioById,
   updatePortfolio,
   getPortfolios,
+  addReferralReward,
+  getPendingReferralRewards,
 } = require("../controller/admin-controller");
 const {
   createTrader,
@@ -123,8 +125,10 @@ router.get("/plan/:id", authenticateAdmin, getSinglePlan);
 router.put("/plan/:id", authenticateAdmin, updatePlans);
 
 // notification route
-
 router.use("/notifications",authenticateAdmin,notificationRoute)
 
+// Referral reward routes
+router.get("/referral-rewards/pending", authenticateAdmin, getPendingReferralRewards);
+router.post("/referral-rewards/add", authenticateAdmin, addReferralReward);
 
 module.exports = router;
