@@ -10,68 +10,158 @@ const {
 const TransactionHistory = require("../models/TransactionHistory");
 const Subscription = require("../models/Subscription");
 
+// const createTransactionRequest = async (req, res) => {
+//   const session = await mongoose.startSession();
+//   await session.startTransaction();
+//   try {
+//     const { amount, type, plan, trader, walletTxId, walletAddress } = req.body;
+//     const userId = req.user._id;
+//     const transactionImage = req.file;
+
+//     // Validate required fields
+//     if (!amount || !type || !plan || !walletAddress || !trader) {
+//       return res.status(400).json({
+//         success: false,
+//         message:
+//           "All fields are required: amount, type, plan, walletAddress, and trader",
+//       });
+//     }
+
+//     // Check if user is verified
+//     const user = await User.findById(userId).session(session);
+//     if (!user) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "User not found",
+//       });
+//     }
+
+//     if (!user.isVerified || user.verificationStatus !== 'verified') {
+//       return res.status(403).json({
+//         success: false,
+//         message: "User must be verified to create transaction requests",
+//       });
+//     }
+
+//     // Validate wallet address matches user's profile
+//     if (user.trustWalletAddress && user.trustWalletAddress !== walletAddress) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Wallet address does not match your registered wallet address",
+//       });
+//     }
+
+//     // Handle transaction image upload (required for deposits, optional for withdrawals)
+//     let transactionImageUrl = null;
+//     if (transactionImage) {
+//       const uploadResult = await uploadToCloudinary(transactionImage);
+//       transactionImageUrl = uploadResult.secure_url;
+//     } else if (type === 'deposit') {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Transaction image is required for deposits",
+//       });
+//     }
+
+//     // Validate amount
+//     if (amount <= 0) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Amount must be greater than 0",
+//       });
+//     }
+
+//     // Validate type
+//     if (!["deposit", "withdrawal"].includes(type)) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Type must be either 'deposit' or 'withdrawal'",
+//       });
+//     }
+
+//     // Validate plan
+//     if (!["silver", "gold", "platinum"].includes(plan)) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Plan must be either 'silver', 'gold', or 'platinum'",
+//       });
+//     }
+
+//     // Create transaction request
+//     const transactionRequest = new TransactionRequest({
+//       userId,
+//       amount,
+//       type,
+//       plan,
+//       walletAddress,
+//       walletTxId,
+//       transactionImage: transactionImageUrl,
+//       trader: [trader], 
+//       status: "pending",
+//     });
+
+//     await transactionRequest.save({ session });
+
+//     // Populate user details for response
+//     await transactionRequest.populate("userId", "name email phone");
+
+//     await TransactionHistory.create(
+//       [
+//         {
+//           userId: transactionRequest.userId,
+//           amount: transactionRequest.amount,
+//           type: transactionRequest.type,
+//           status: transactionRequest.status,
+//           txnReqId: transactionRequest._id,
+//         },
+//       ],
+//       { session }
+//     );
+
+//     await createAdminNoitification(
+//       `New transaction request created by ${transactionRequest.userId.name} for amount ${transactionRequest.amount}`,
+//       `New transaction request created`
+//     );
+
+//     // Commit transaction
+//     await session.commitTransaction();
+//     session.endSession();
+
+//     res.status(201).json({
+//       success: true,
+//       message: "Transaction request created successfully",
+//       data: transactionRequest,
+//     });
+//   } catch (error) {
+//     console.error("Error creating transaction request:", error);
+//     await session.abortTransaction();
+//     session.endSession();
+//     res.status(500).json({
+//       success: false,
+//       message: "Internal server error",
+//       error: error.message,
+//     });
+//   }
+// };
+
 const createTransactionRequest = async (req, res) => {
   const session = await mongoose.startSession();
   await session.startTransaction();
+
   try {
     const { amount, type, plan, trader, walletTxId, walletAddress } = req.body;
     const userId = req.user._id;
     const transactionImage = req.file;
 
-    // Validate required fields
-    if (!amount || !type || !plan || !walletAddress || !trader) {
+    // ✅ Step 1: Basic field validation
+    if (!amount || !type || !plan || !trader) {
       return res.status(400).json({
         success: false,
-        message:
-          "All fields are required: amount, type, plan, walletAddress, and trader",
+        message: "Fields required: amount, type, plan, and trader",
       });
     }
 
-    // Check if user is verified
-    const user = await User.findById(userId).session(session);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
-    }
-
-    if (!user.isVerified || user.verificationStatus !== 'verified') {
-      return res.status(403).json({
-        success: false,
-        message: "User must be verified to create transaction requests",
-      });
-    }
-
-    // Validate wallet address matches user's profile
-    if (user.trustWalletAddress && user.trustWalletAddress !== walletAddress) {
-      return res.status(400).json({
-        success: false,
-        message: "Wallet address does not match your registered wallet address",
-      });
-    }
-
-    // Handle transaction image upload (required for deposits, optional for withdrawals)
-    let transactionImageUrl = null;
-    if (transactionImage) {
-      const uploadResult = await uploadToCloudinary(transactionImage);
-      transactionImageUrl = uploadResult.secure_url;
-    } else if (type === 'deposit') {
-      return res.status(400).json({
-        success: false,
-        message: "Transaction image is required for deposits",
-      });
-    }
-
-    // Validate amount
-    if (amount <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Amount must be greater than 0",
-      });
-    }
-
-    // Validate type
+    // ✅ Step 2: Type & Plan validation
     if (!["deposit", "withdrawal"].includes(type)) {
       return res.status(400).json({
         success: false,
@@ -79,7 +169,6 @@ const createTransactionRequest = async (req, res) => {
       });
     }
 
-    // Validate plan
     if (!["silver", "gold", "platinum"].includes(plan)) {
       return res.status(400).json({
         success: false,
@@ -87,24 +176,85 @@ const createTransactionRequest = async (req, res) => {
       });
     }
 
-    // Create transaction request
+    if (amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Amount must be greater than 0",
+      });
+    }
+
+    // ✅ Step 3: Fetch and validate user
+    const user = await User.findById(userId).session(session);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    if (!user.isVerified || user.verificationStatus !== "verified") {
+      return res.status(403).json({
+        success: false,
+        message: "User must be verified to create transaction requests",
+      });
+    }
+
+    // ✅ Step 4: Conditional validation based on type
+    if (type === "deposit") {
+      // Deposit: transaction image required
+      if (!transactionImage) {
+        return res.status(400).json({
+          success: false,
+          message: "Transaction image is required for deposits",
+        });
+      }
+    } else if (type === "withdrawal") {
+      // Withdrawal: wallet address required and must match user's registered one
+      if (!walletAddress) {
+        return res.status(400).json({
+          success: false,
+          message: "Wallet address is required for withdrawals",
+        });
+      }
+
+      // Compare with user’s stored wallet
+      if (!user.trustWalletAddress) {
+        return res.status(400).json({
+          success: false,
+          message: "You don't have a registered wallet address in your profile",
+        });
+      }
+
+      if (user.trustWalletAddress !== walletAddress) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Provided wallet address does not match your registered wallet address",
+        });
+      }
+    }
+
+    // ✅ Step 5: Handle image upload (if provided)
+    let transactionImageUrl = null;
+    if (transactionImage) {
+      const uploadResult = await uploadToCloudinary(transactionImage);
+      transactionImageUrl = uploadResult.secure_url;
+    }
+
+    // ✅ Step 6: Create transaction request
     const transactionRequest = new TransactionRequest({
       userId,
       amount,
       type,
       plan,
-      walletAddress,
+      walletAddress: type === "withdrawal" ? walletAddress : null,
       walletTxId,
       transactionImage: transactionImageUrl,
-      trader: [trader], 
+      trader: [trader],
       status: "pending",
     });
 
     await transactionRequest.save({ session });
-
-    // Populate user details for response
     await transactionRequest.populate("userId", "name email phone");
 
+    // ✅ Step 7: Record transaction in history
     await TransactionHistory.create(
       [
         {
@@ -118,16 +268,17 @@ const createTransactionRequest = async (req, res) => {
       { session }
     );
 
+    // ✅ Step 8: Notify admin
     await createAdminNoitification(
-      `New transaction request created by ${transactionRequest.userId.name} for amount ${transactionRequest.amount}`,
-      `New transaction request created`
+      `New ${type} request by ${transactionRequest.userId.name} for amount ${transactionRequest.amount}`,
+      `New ${type} request`
     );
 
-    // Commit transaction
+    // ✅ Step 9: Commit
     await session.commitTransaction();
     session.endSession();
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: "Transaction request created successfully",
       data: transactionRequest,
@@ -136,13 +287,16 @@ const createTransactionRequest = async (req, res) => {
     console.error("Error creating transaction request:", error);
     await session.abortTransaction();
     session.endSession();
-    res.status(500).json({
+
+    return res.status(500).json({
       success: false,
       message: "Internal server error",
       error: error.message,
     });
   }
 };
+
+
 
 const getTransactionRequests = async (req, res) => {
   try {
@@ -291,7 +445,7 @@ const updateTransactionRequest = async (req, res) => {
     if (status) updateData.status = status;
     if (rejectionReason) updateData.rejectionReason = rejectionReason;
     if (trustWalletAddress) updateData.walletAddress = trustWalletAddress;
-    
+
 
     if (Object.keys(updateData).length === 0) {
       return res.status(400).json({
@@ -356,9 +510,18 @@ const updateTransactionRequest = async (req, res) => {
               updatedAt: new Date(),
             });
           } else if (txnType === "withdrawal") {
-            plans[activeIdx].invested = Math.max(0, plans[activeIdx].invested - txnAmount);
-            plans[activeIdx].currentValue = Math.max(0, plans[activeIdx].currentValue - txnAmount);
-            // Add price history entry for withdrawal
+            // For withdrawals, deduct from returns first, then from invested if returns are insufficient
+            const currentReturns = plans[activeIdx].currentValue - plans[activeIdx].invested;
+            
+            if (currentReturns >= txnAmount) {
+              // Sufficient returns - deduct only from currentValue
+              plans[activeIdx].currentValue = Math.max(0, plans[activeIdx].currentValue - txnAmount);
+            } else {
+              // Insufficient returns - deduct from returns first, then from invested
+              plans[activeIdx].currentValue = Math.max(0, plans[activeIdx].currentValue - currentReturns);
+              plans[activeIdx].invested = Math.max(0, plans[activeIdx].invested - (txnAmount - currentReturns));
+            }
+
             plans[activeIdx].priceHistory.push({
               value: plans[activeIdx].currentValue,
               updatedAt: new Date(),
@@ -367,13 +530,11 @@ const updateTransactionRequest = async (req, res) => {
           plans[activeIdx].returns = plans[activeIdx].currentValue - plans[activeIdx].invested;
         }
 
-        // Compute portfolio aggregates
         const totalInvested = plans.reduce((s, p) => s + p.invested, 0);
         const currentValue = plans.reduce((s, p) => s + p.currentValue, 0);
         const totalReturns = currentValue - totalInvested;
         const totalReturnsPercentage = totalInvested ? (totalReturns / totalInvested) * 100 : 0;
 
-        // Set portfolio-level return rate from the active subscription plan
         const portfolioReturnRate = subscriptionPlan ? {
           min: subscriptionPlan.minReturnRate,
           max: subscriptionPlan.maxReturnRate,
@@ -430,9 +591,18 @@ const updateTransactionRequest = async (req, res) => {
             updatedAt: new Date(),
           });
         } else if (txnType === "withdrawal") {
-          planBucket.invested = Math.max(0, (planBucket.invested || 0) - txnAmount);
-          planBucket.currentValue = Math.max(0, (planBucket.currentValue || 0) - txnAmount);
-          // Add price history entry for withdrawal
+          // For withdrawals, deduct from returns first, then from invested if returns are insufficient
+          const currentReturns = (planBucket.currentValue || 0) - (planBucket.invested || 0);
+          
+          if (currentReturns >= txnAmount) {
+            // Sufficient returns - deduct only from currentValue
+            planBucket.currentValue = Math.max(0, (planBucket.currentValue || 0) - txnAmount);
+          } else {
+            // Insufficient returns - deduct from returns first, then from invested
+            planBucket.currentValue = Math.max(0, (planBucket.currentValue || 0) - currentReturns);
+            planBucket.invested = Math.max(0, (planBucket.invested || 0) - (txnAmount - currentReturns));
+          }
+          
           planBucket.priceHistory.push({
             value: planBucket.currentValue,
             updatedAt: new Date(),
