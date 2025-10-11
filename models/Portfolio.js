@@ -32,6 +32,10 @@ const portfolioSchema = new Schema(
       type: Number,
       default: 0,
     },
+    referralAmount: {
+      type: Number,
+      default: 0,
+    },
 
     // Per-plan breakdown to attribute investments and returns
     plans: [

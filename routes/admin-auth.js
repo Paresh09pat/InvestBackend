@@ -20,6 +20,9 @@ const {
   getInvestmentRequestById,
   updateInvestmentRequest,
   deleteInvestmentRequest,
+  getReferralTransactions,
+  updateReferralTransaction,
+  getReferralTransactionById,
 } = require("../controller/admin-controller");
 const {
   createTrader,
@@ -140,5 +143,9 @@ router.get("/invt-requests", authenticateAdmin, getInvestmentRequest);
 router.get("/invt-req/:id", authenticateAdmin, getInvestmentRequestById);
 router.put("/invt-req/:id", authenticateAdmin, updateInvestmentRequest);
 router.delete("/invt-req/:id", authenticateAdmin, deleteInvestmentRequest);
+// Referral transaction routes
+router.get("/referral-transactions", authenticateAdmin, getReferralTransactions);
+router.get("/referral-transaction/:id", authenticateAdmin, getReferralTransactionById);
+router.put("/referral-transaction/:id", authenticateAdmin, updateReferralTransaction);
 
 module.exports = router;
