@@ -3,7 +3,7 @@ const User = require("../models/User");
 const router = express.Router();
 const jwt = require("jsonwebtoken");
 const { cookieOptions, upload, handleMulterError } = require("../config/utils");
-const { register, login, profile, updateProfile, logout, uploadProfilePictureController, deleteProfilePictureController, getPortfolio } = require("../controller/auth-controller");
+const { register, login, profile, updateProfile, logout, uploadProfilePictureController, deleteProfilePictureController, getPortfolio, getMyReferralTransactions, getReferralStats } = require("../controller/auth-controller");
 const { authenticateUser } = require("../middleware/auth");
 const notificationRoutes = require("./notification-route");
 const { getDefaultPlans } = require("../controller/subscription-controller");
@@ -17,6 +17,8 @@ router.post("/login", login);
 router.use(authenticateUser)
 router.get("/profile", profile);
 router.get("/portfolio", getPortfolio);
+router.get("/referral-transactions", getMyReferralTransactions);
+router.get("/referral-stats", getReferralStats);
  
 // Update user profile route
 router.put("/profile", updateProfile);

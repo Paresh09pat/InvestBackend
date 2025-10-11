@@ -1,11 +1,15 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
+const mongoose = require("mongoose");
 const User = require("../models/User");
 const { uploadToCloudinary, deleteFromCloudinary } = require("../utils/cloudinaryUpload");
 const Portfolio = require("../models/Portfolio");
 const Notification = require("../models/Notification");
 const Referral = require("../models/Referal");
+const ReferralTransaction = require("../models/ReferralTransaction");
+const TransactionRequest = require("../models/TransactionRequest");
+const { createNotification } = require("./notification-controller");
 
 dotenv.config();
 
@@ -70,7 +74,7 @@ const adminLogin = async (req, res) => {
         message: "Invalid admin credentials",
       });
     }
-  
+
     // Generate JWT token
     const adminToken = jwt.sign(
       {
@@ -137,7 +141,7 @@ const adminProfile = async (req, res) => {
         }
       );
 
-   
+
 
 
       res.cookie("admin_token", newAdminToken, {
@@ -148,7 +152,7 @@ const adminProfile = async (req, res) => {
         path: "/",
       });
     }
-    const notifications = await Notification.find({userId:decoded._id,read:false}).countDocuments();
+    const notifications = await Notification.find({ userId: decoded._id, read: false }).countDocuments();
     const admin = await User.findOne({ email: decoded.email }).select("-password");
 
     if (!admin) {
@@ -156,6 +160,31 @@ const adminProfile = async (req, res) => {
         message: "Admin user not found",
       });
     }
+
+    // Count pending documents (Aadhaar and PAN documents with status pending)
+    const pendingDocuments = await User.countDocuments({
+      $or: [
+        { "documents.aadhaar.status": "pending" },
+        { "documents.pan.status": "pending" }
+      ]
+    });
+
+    // Count pending investments (deposit transactions with status pending)
+    const pendingInvestments = await TransactionRequest.countDocuments({
+      type: "deposit",
+      status: "pending"
+    });
+
+    // Count pending withdrawals (withdrawal transactions with status pending)
+    const pendingWithdrawals = await TransactionRequest.countDocuments({
+      type: "withdrawal",
+      status: "pending"
+    });
+
+    // Count pending referrals (referral transactions with status pending)
+    const pendingReferrals = await ReferralTransaction.countDocuments({
+      status: "pending"
+    });
 
     res.status(200).json({
       message: "Admin profile retrieved successfully",
@@ -168,6 +197,12 @@ const adminProfile = async (req, res) => {
         profilePicture: admin.profilePicture,
         notifications,
       },
+      counts: {
+        pendingDocuments,
+        pendingInvestments,
+        pendingWithdrawals,
+        pendingReferrals
+      }
     });
   } catch (error) {
     console.log("error>>>", error)
@@ -459,7 +494,7 @@ const updatePortfolio = async (req, res) => {
       // Update the specific plan
       existingPortfolio.plans[planIndex].currentValue = currentValue;
       existingPortfolio.plans[planIndex].returns = planReturns;
-      
+
       // Add to plan's price history
       if (!existingPortfolio.plans[planIndex].priceHistory) {
         existingPortfolio.plans[planIndex].priceHistory = [];
@@ -471,7 +506,7 @@ const updatePortfolio = async (req, res) => {
 
       // Recompute portfolio aggregates from all plans
       existingPortfolio.totalInvested = existingPortfolio.plans.reduce((sum, p) => sum + (p.invested || 0), 0);
-      existingPortfolio.currentValue = existingPortfolio.plans.reduce((sum, p) => sum + (p.currentValue || 0), 0) + (existingPortfolio.referralRewards || 0);
+      existingPortfolio.currentValue = existingPortfolio.plans.reduce((sum, p) => sum + (p.currentValue || 0), 0) + (existingPortfolio.referralRewards || 0) + (existingPortfolio.referralAmount || 0);
       existingPortfolio.totalReturns = existingPortfolio.currentValue - existingPortfolio.totalInvested;
       existingPortfolio.totalReturnsPercentage = existingPortfolio.totalInvested
         ? (existingPortfolio.totalReturns / existingPortfolio.totalInvested) * 100
@@ -485,7 +520,7 @@ const updatePortfolio = async (req, res) => {
         ? (totalReturns / totalInvested) * 100
         : 0;
 
-      existingPortfolio.currentValue = currentValue + (existingPortfolio.referralRewards || 0);
+      existingPortfolio.currentValue = currentValue + (existingPortfolio.referralRewards || 0) + (existingPortfolio.referralAmount || 0);
       existingPortfolio.totalReturns = existingPortfolio.currentValue - existingPortfolio.totalInvested;
       existingPortfolio.totalReturnsPercentage = existingPortfolio.totalInvested
         ? (existingPortfolio.totalReturns / existingPortfolio.totalInvested) * 100
@@ -676,8 +711,8 @@ const addReferralReward = async (req, res) => {
       portfolio.referralRewards = (portfolio.referralRewards || 0) + rewardAmount;
       portfolio.currentValue = (portfolio.currentValue || 0) + rewardAmount;
       portfolio.totalReturns = portfolio.currentValue - portfolio.totalInvested;
-      portfolio.totalReturnsPercentage = portfolio.totalInvested > 0 
-        ? (portfolio.totalReturns / portfolio.totalInvested) * 100 
+      portfolio.totalReturnsPercentage = portfolio.totalInvested > 0
+        ? (portfolio.totalReturns / portfolio.totalInvested) * 100
         : 0;
     }
 
@@ -717,9 +752,9 @@ const getPendingReferralRewards = async (req, res) => {
       rewardClaimed: false,
       rewardExpiresAt: { $gt: new Date() }
     })
-    .populate("referrer", "name email referralCode")
-    .populate("referred", "name email")
-    .sort({ createdAt: -1 });
+      .populate("referrer", "name email referralCode")
+      .populate("referred", "name email")
+      .sort({ createdAt: -1 });
 
     res.status(200).json({
       message: "Pending referral rewards fetched successfully",
@@ -735,7 +770,253 @@ const getPendingReferralRewards = async (req, res) => {
   }
 };
 
-// trader i
+const getAllReferrals = async (req, res) => {
+  try {
+    const { page, limit, search } = req.query;
+
+    const skip = (page - 1) * limit;
+    const referrals = await Referral.find({ $or: [{ referrer: { $regex: search, $options: "i" } }, { referred: { $regex: search, $options: "i" } }] }).populate("referrer", "name email").populate("referred", "name email").sort({ createdAt: -1 }).skip(skip).limit(limit);
+    const total = await Referral.countDocuments({ $or: [{ referrer: { $regex: search, $options: "i" } }, { referred: { $regex: search, $options: "i" } }] });
+    res.status(200).json({
+      message: "Referrals fetched successfully",
+      data: referrals,
+      total: total
+    });
+  }
+  catch (err) {
+    console.log(err);
+    res.status(500).json({
+      message: "Internal server error",
+      error: err.message
+    });
+  }
+}
+
+// Get all referral transactions
+const getReferralTransactions = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, status, search } = req.query;
+    const skip = (page - 1) * limit;
+
+    // Build filter
+    const filter = {};
+    if (status) filter.status = status;
+
+    if (search) {
+      filter.$or = [
+        { "referrer.name": { $regex: search, $options: "i" } },
+        { "referred.name": { $regex: search, $options: "i" } },
+        { referredPlan: { $regex: search, $options: "i" } }
+      ];
+    }
+
+    const referralTransactions = await ReferralTransaction.find(filter)
+      .populate("referrer", "name email")
+      .populate("referred", "name email")
+      .populate("approvedBy", "name email")
+      .populate("transactionRequestId", "amount type plan")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const total = await ReferralTransaction.countDocuments(filter);
+
+    res.status(200).json({
+      message: "Referral transactions fetched successfully",
+      data: referralTransactions,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(total / parseInt(limit)),
+        totalItems: total,
+        itemsPerPage: parseInt(limit),
+      }
+    });
+  } catch (error) {
+    console.error("Get referral transactions error:", error);
+    res.status(500).json({
+      message: "Internal server error",
+      error: error.message
+    });
+  }
+};
+
+// Update referral transaction (approve/reject)
+const updateReferralTransaction = async (req, res) => {
+  const session = await mongoose.startSession();
+  await session.startTransaction();
+
+  try {
+    const { id } = req.params;
+    const { status, rewardAmount, rejectionReason } = req.body;
+
+    if (!id) {
+      return res.status(400).json({
+        message: "Referral transaction ID is required"
+      });
+    }
+
+    if (!status || !["approved", "rejected"].includes(status)) {
+      return res.status(400).json({
+        message: "Status must be either 'approved' or 'rejected'"
+      });
+    }
+
+    const referralTransaction = await ReferralTransaction.findById(id).session(session);
+    if (!referralTransaction) {
+      return res.status(404).json({
+        message: "Referral transaction not found"
+      });
+    }
+
+    if (referralTransaction.status !== "pending") {
+      return res.status(400).json({
+        message: "Only pending referral transactions can be updated"
+      });
+    }
+
+    // Prepare update data
+    const updateData = {
+      status,
+      approvedBy: req.admin._id,
+      approvedAt: new Date()
+    };
+
+    if (status === "approved") {
+      if (!rewardAmount || rewardAmount <= 0) {
+        return res.status(400).json({
+          message: "Reward amount is required and must be greater than 0 for approval"
+        });
+      }
+      updateData.rewardAmount = rewardAmount;
+    } else if (status === "rejected") {
+      if (!rejectionReason) {
+        return res.status(400).json({
+          message: "Rejection reason is required for rejection"
+        });
+      }
+      updateData.rejectionReason = rejectionReason;
+    }
+
+    // Update referral transaction
+    const updatedReferralTransaction = await ReferralTransaction.findByIdAndUpdate(
+      id,
+      updateData,
+      { new: true, session }
+    ).populate("referrer", "name email")
+     .populate("referred", "name email")
+     .populate("approvedBy", "name email");
+
+    // If approved, add reward to referrer's portfolio
+    if (status === "approved") {
+      // Find or create portfolio for referrer
+      let portfolio = await Portfolio.findOne({ user: referralTransaction.referrer }).session(session);
+
+      if (!portfolio) {
+        // Create new portfolio with referral reward
+        portfolio = new Portfolio({
+          user: referralTransaction.referrer,
+          totalInvested: 0,
+          currentValue: rewardAmount,
+          totalReturns: rewardAmount,
+          totalReturnsPercentage: 0,
+          referralRewards: rewardAmount,
+          referralAmount: rewardAmount,
+          plans: []
+        });
+      } else {
+        // Update existing portfolio
+        portfolio.referralRewards = (portfolio.referralRewards || 0) + rewardAmount;
+        portfolio.referralAmount = (portfolio.referralAmount || 0) + rewardAmount;
+        portfolio.currentValue = (portfolio.currentValue || 0) + rewardAmount;
+        portfolio.totalReturns = portfolio.currentValue - portfolio.totalInvested;
+        portfolio.totalReturnsPercentage = portfolio.totalInvested > 0
+          ? (portfolio.totalReturns / portfolio.totalInvested) * 100
+          : 0;
+      }
+
+      await portfolio.save({ session });
+
+      // Mark original referral as claimed
+      await Referral.findOneAndUpdate(
+        {
+          referrer: referralTransaction.referrer,
+          referred: referralTransaction.referred,
+          rewardClaimed: false
+        },
+        { rewardClaimed: true },
+        { session }
+      );
+
+      // Create notification for referrer
+      await createNotification(
+        referralTransaction.referrer,
+        `Congratulations! You received a referral reward of $${rewardAmount} for referring ${updatedReferralTransaction.referred.name}`,
+        "Referral Reward Approved"
+      );
+    }
+
+    // Create notification for referred user
+    await createNotification(
+      referralTransaction.referred,
+      `Your referrer has ${status === "approved" ? "received" : "been denied"} a referral reward for your first deposit`,
+      `Referral Reward ${status === "approved" ? "Approved" : "Rejected"}`
+    );
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(200).json({
+      message: `Referral transaction ${status} successfully`,
+      data: updatedReferralTransaction
+    });
+
+  } catch (error) {
+    console.error("Update referral transaction error:", error);
+    await session.abortTransaction();
+    session.endSession();
+    res.status(500).json({
+      message: "Internal server error",
+      error: error.message
+    });
+  }
+};
+
+// Get referral transaction by ID
+const getReferralTransactionById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        message: "Referral transaction ID is required"
+      });
+    }
+
+    const referralTransaction = await ReferralTransaction.findById(id)
+      .populate("referrer", "name email")
+      .populate("referred", "name email")
+      .populate("approvedBy", "name email")
+      .populate("transactionRequestId", "amount type plan");
+
+    if (!referralTransaction) {
+      return res.status(404).json({
+        message: "Referral transaction not found"
+      });
+    }
+
+    res.status(200).json({
+      message: "Referral transaction fetched successfully",
+      data: referralTransaction
+    });
+
+  } catch (error) {
+    console.error("Get referral transaction by ID error:", error);
+    res.status(500).json({
+      message: "Internal server error",
+      error: error.message
+    });
+  }
+};
 
 module.exports = {
   adminLogin,
@@ -750,4 +1031,8 @@ module.exports = {
   getPortfolios,
   addReferralReward,
   getPendingReferralRewards,
+  getAllReferrals,
+  getReferralTransactions,
+  updateReferralTransaction,
+  getReferralTransactionById,
 };

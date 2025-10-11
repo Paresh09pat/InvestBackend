@@ -13,6 +13,7 @@ const {
 } = require("../utils/cloudinaryUpload");
 const Portfolio = require("../models/Portfolio");
 const Referral = require("../models/Referal");
+const ReferralTransaction = require("../models/ReferralTransaction");
 const { generateCode } = require("../utils/uttil");
 
 // const register = async (req, res) => {
@@ -557,6 +558,269 @@ const getPortfolio = async (req, res) => {
   }
 }
 
+const getMyReferralTransactions = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, status } = req.query;
+    const skip = (page - 1) * limit;
+
+    // Build filter - get transactions where user is either referrer or referred
+    const filter = {
+      $or: [
+        { referrer: req.user._id },
+        { referred: req.user._id }
+      ]
+    };
+
+    if (status) filter.status = status;
+
+    const referralTransactions = await ReferralTransaction.find(filter)
+      .populate("referrer", "name email")
+      .populate("referred", "name email")
+      .populate("approvedBy", "name email")
+      .populate("transactionRequestId", "amount type plan")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const total = await ReferralTransaction.countDocuments(filter);
+
+    res.status(200).json({
+      message: "Referral transactions fetched successfully",
+      data: referralTransactions,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(total / parseInt(limit)),
+        totalItems: total,
+        itemsPerPage: parseInt(limit),
+      }
+    });
+  } catch (error) {
+    console.error("Get my referral transactions error:", error);
+    res.status(500).json({
+      message: "Internal server error",
+      error: error.message
+    });
+  }
+};
+
+const getReferralStats = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    // Get user's portfolio for referral amounts
+    const portfolio = await Portfolio.findOne({ user: userId });
+
+    // Get total referrals made by this user
+    const totalReferrals = await Referral.countDocuments({ referrer: userId });
+
+    // Get successful referrals (where reward was claimed)
+    const successfulReferrals = await Referral.countDocuments({ 
+      referrer: userId, 
+      rewardClaimed: true 
+    });
+
+    // Get pending referrals (where reward is not yet claimed)
+    const pendingReferrals = await Referral.countDocuments({ 
+      referrer: userId, 
+      rewardClaimed: false,
+      rewardExpiresAt: { $gt: new Date() }
+    });
+
+    // Get expired referrals
+    const expiredReferrals = await Referral.countDocuments({ 
+      referrer: userId, 
+      rewardClaimed: false,
+      rewardExpiresAt: { $lte: new Date() }
+    });
+
+    // Get referral transactions where user is the referrer
+    const referralTransactions = await ReferralTransaction.find({ referrer: userId })
+      .populate("referred", "name email")
+      .sort({ createdAt: -1 });
+
+    // Calculate total reward amount earned
+    const totalRewardsEarned = referralTransactions
+      .filter(rt => rt.status === 'approved')
+      .reduce((sum, rt) => sum + (rt.rewardAmount || 0), 0);
+
+    // Calculate pending reward amount
+    const pendingRewardsAmount = referralTransactions
+      .filter(rt => rt.status === 'pending')
+      .reduce((sum, rt) => sum + (rt.rewardAmount || 0), 0);
+
+    // Get referrals by plan
+    const referralsByPlan = await ReferralTransaction.aggregate([
+      { $match: { referrer: userId } },
+      {
+        $group: {
+          _id: "$referredPlan",
+          count: { $sum: 1 },
+          totalRewardAmount: { $sum: { $cond: [{ $eq: ["$status", "approved"] }, "$rewardAmount", 0] } }
+        }
+      }
+    ]);
+
+    // Get recent referrals (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const recentReferrals = await Referral.countDocuments({
+      referrer: userId,
+      createdAt: { $gte: thirtyDaysAgo }
+    });
+
+    // Get referrals by status
+    const referralsByStatus = await ReferralTransaction.aggregate([
+      { $match: { referrer: userId } },
+      {
+        $group: {
+          _id: "$status",
+          count: { $sum: 1 },
+          totalAmount: { $sum: "$rewardAmount" }
+        }
+      }
+    ]);
+
+    // Get top referred users by deposit amount
+    const topReferredUsers = await ReferralTransaction.aggregate([
+      { $match: { referrer: userId, status: "approved" } },
+      {
+        $lookup: {
+          from: "users",
+          localField: "referred",
+          foreignField: "_id",
+          as: "referredUser"
+        }
+      },
+      { $unwind: "$referredUser" },
+      {
+        $project: {
+          referredUserName: "$referredUser.name",
+          referredUserEmail: "$referredUser.email",
+          referredPlan: 1,
+          referredDepositAmount: 1,
+          rewardAmount: 1,
+          approvedAt: 1
+        }
+      },
+      { $sort: { referredDepositAmount: -1 } },
+      { $limit: 5 }
+    ]);
+
+    // Calculate conversion rate
+    const conversionRate = totalReferrals > 0 ? (successfulReferrals / totalReferrals) * 100 : 0;
+
+    // Get monthly referral stats for the last 6 months
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+    const monthlyStats = await Referral.aggregate([
+      {
+        $match: {
+          referrer: userId,
+          createdAt: { $gte: sixMonthsAgo }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: "$createdAt" },
+            month: { $month: "$createdAt" }
+          },
+          count: { $sum: 1 },
+          successful: {
+            $sum: { $cond: ["$rewardClaimed", 1, 0] }
+          }
+        }
+      },
+      { $sort: { "_id.year": 1, "_id.month": 1 } }
+    ]);
+
+    // Get all people the user has referred with their details
+    const allReferredUsers = await Referral.find({ referrer: userId })
+      .populate("referred", "name email phone createdAt")
+      .sort({ createdAt: -1 });
+
+    // Get referral transaction details for each referred user
+    const referredUsersWithDetails = await Promise.all(
+      allReferredUsers.map(async (referral) => {
+        const referralTransaction = await ReferralTransaction.findOne({
+          referrer: userId,
+          referred: referral.referred._id
+        }).populate("transactionRequestId", "amount plan");
+
+        return {
+          referredUser: {
+            id: referral.referred._id,
+            name: referral.referred.name,
+            email: referral.referred.email,
+            phone: referral.referred.phone,
+            joinedAt: referral.referred.createdAt
+          },
+          referralDetails: {
+            referredAt: referral.createdAt,
+            rewardExpiresAt: referral.rewardExpiresAt,
+            rewardClaimed: referral.rewardClaimed,
+            status: referralTransaction ? referralTransaction.status : 'no_deposit',
+            referredPlan: referralTransaction ? referralTransaction.referredPlan : null,
+            depositAmount: referralTransaction ? referralTransaction.referredDepositAmount : null,
+            rewardAmount: referralTransaction ? referralTransaction.rewardAmount : null,
+            approvedAt: referralTransaction ? referralTransaction.approvedAt : null
+          }
+        };
+      })
+    );
+
+    const stats = {
+      overview: {
+        totalReferrals,
+        successfulReferrals,
+        pendingReferrals,
+        expiredReferrals,
+        conversionRate: Math.round(conversionRate * 100) / 100,
+        recentReferrals
+      },
+      earnings: {
+        totalRewardsEarned,
+        pendingRewardsAmount,
+        portfolioReferralAmount: portfolio?.referralAmount || 0,
+        portfolioReferralRewards: portfolio?.referralRewards || 0
+      },
+      referralsByPlan: referralsByPlan.map(item => ({
+        plan: item._id,
+        count: item.count,
+        totalRewardAmount: item.totalRewardAmount
+      })),
+      referralsByStatus: referralsByStatus.map(item => ({
+        status: item._id,
+        count: item.count,
+        totalAmount: item.totalAmount
+      })),
+      topReferredUsers,
+      monthlyStats: monthlyStats.map(item => ({
+        month: `${item._id.year}-${String(item._id.month).padStart(2, '0')}`,
+        totalReferrals: item.count,
+        successfulReferrals: item.successful
+      })),
+      allReferredUsers: referredUsersWithDetails,
+      referralCode: req.user.referralCode,
+      referralLink: req.user.referralCode ? `https://trdexa.com/signup?referralCode=${req.user.referralCode}` : null
+    };
+
+    res.status(200).json({
+      message: "Referral stats fetched successfully",
+      stats
+    });
+
+  } catch (error) {
+    console.error("Get referral stats error:", error);
+    res.status(500).json({
+      message: "Internal server error",
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -566,4 +830,6 @@ module.exports = {
   uploadProfilePictureController,
   deleteProfilePictureController,
   getPortfolio,
+  getMyReferralTransactions,
+  getReferralStats,
 };

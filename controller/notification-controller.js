@@ -93,21 +93,28 @@ const createAdminNoitification = async (message, title) => {
 
 const getAllAdminNotifications = async (req, res) => {
   try {
-    const { page } = req.query || 1;
-    const { limit } = req.query || 10;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    
     const notifications = await Notification.find({ userId: req.admin._id })
       .sort({ read: 1, createdAt: -1 })
       .skip(skip)
       .limit(limit);
     const total = await Notification.countDocuments({ userId: req.admin._id });
+    
     return res.status(200).json({
       success: true,
       message: "Notifications fetched successfully",
       notifications,
-      total,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(total / limit),
+        totalItems: total,
+        itemsPerPage: limit,
+        hasNextPage: page < Math.ceil(total / limit),
+        hasPrevPage: page > 1
+      }
     })
   }
   catch (err) {
@@ -148,10 +155,10 @@ const deleteAdminNotification = async (req, res) => {
   try {
     const { ids } = req.body;
 
-    if (!id) {
+    if (!ids) {
       return res.status(400).json({
         success: false,
-        message: "Notification id is required"
+        message: "Notification ids are required"
       })
     }
 
@@ -162,7 +169,7 @@ const deleteAdminNotification = async (req, res) => {
         message: "Notifications deleted successfully"
       })
     } else {
-      await Notification.findByIdAndDelete(ids);
+      await Notification.deleteMany({ _id: { $in: ids } });
       return res.status(200).json({
         success: true,
         message: "Notification deleted successfully"

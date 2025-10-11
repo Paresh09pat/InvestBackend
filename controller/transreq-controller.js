@@ -10,6 +10,7 @@ const {
 const TransactionHistory = require("../models/TransactionHistory");
 const Subscription = require("../models/Subscription");
 const Referral = require("../models/Referal");
+const ReferralTransaction = require("../models/ReferralTransaction");
 
 // const createTransactionRequest = async (req, res) => {
 //   const session = await mongoose.startSession();
@@ -287,10 +288,23 @@ const createTransactionRequest = async (req, res) => {
         }).session(session);
 
         if (referral) {
+          // Create referral transaction request for admin approval
+          const referralTransaction = new ReferralTransaction({
+            referrer: referral.referrer,
+            referred: userId,
+            referredPlan: plan,
+            referredDepositAmount: amount,
+            rewardAmount: 0, // Admin will set this amount
+            status: "pending",
+            transactionRequestId: transactionRequest._id
+          });
+
+          await referralTransaction.save({ session });
+
           // Notify admin about referral reward eligibility
           await createAdminNoitification(
-            `Referral reward eligible: User ${transactionRequest.userId.name} made first deposit of ${transactionRequest.amount}. Referrer: ${referral.referrer}`,
-            `Referral Reward Eligible`
+            `Referral reward request created: User ${transactionRequest.userId.name} made first deposit of ${transactionRequest.amount} in ${plan} plan. Referrer: ${referral.referrer}. Please set reward amount and approve.`,
+            `Referral Reward Request`
           );
         }
       }
@@ -635,7 +649,7 @@ const updateTransactionRequest = async (req, res) => {
 
         // Recompute aggregates from plan buckets
         portfolio.totalInvested = portfolio.plans.reduce((s, p) => s + (p.invested || 0), 0);
-        portfolio.currentValue = portfolio.plans.reduce((s, p) => s + (p.currentValue || 0), 0) + (portfolio.referralRewards || 0);
+        portfolio.currentValue = portfolio.plans.reduce((s, p) => s + (p.currentValue || 0), 0) + (portfolio.referralRewards || 0) + (portfolio.referralAmount || 0);
         portfolio.totalReturns = portfolio.currentValue - portfolio.totalInvested;
         portfolio.totalReturnsPercentage = portfolio.totalInvested
           ? (portfolio.totalReturns / portfolio.totalInvested) * 100
