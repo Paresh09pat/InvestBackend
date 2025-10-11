@@ -6,6 +6,7 @@ const { uploadToCloudinary, deleteFromCloudinary } = require("../utils/cloudinar
 const Portfolio = require("../models/Portfolio");
 const Notification = require("../models/Notification");
 const Referral = require("../models/Referal");
+const InvestRequest = require("../models/InvestRequest");
 
 dotenv.config();
 
@@ -735,7 +736,98 @@ const getPendingReferralRewards = async (req, res) => {
   }
 };
 
-// trader i
+//withdrawal investment request update for admin 
+const updateInvestmentRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+  const { status, rejectionReason } = req.body;
+  const investmentRequest = await InvestRequest.findByIdAndUpdate(id, { status, rejectionReason }, { new: true });
+  return res.status(200).json({
+    message: "Investment request updated successfully",
+    data: investmentRequest,
+  });
+
+  } catch (error) {
+    console.error("Update investment request error:", error);
+    return res.status(500).json({
+      message: "Internal server error",
+      error: error.message
+    });
+  }
+};
+
+// withdrawal investment request get for admin
+const getInvestmentRequest = async (req, res) => {
+  try {
+    const investmentRequests = await InvestRequest.find()
+      .populate("userId", "name email")
+      .sort({ createdAt: -1 });
+    
+    return res.status(200).json({
+      success: true,
+      message: "Investment requests fetched successfully",
+      data: investmentRequests,
+    });
+  } catch (error) {
+    console.error("Get investment request error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message
+    });
+  }
+};
+
+// withdrawal investment request get for admin
+const getInvestmentRequestById = async (req, res) => {
+  try {
+    const investmentRequest = await InvestRequest.findById(req.params.id)
+      .populate("userId", "name email");
+    
+    if (!investmentRequest) {
+      return res.status(404).json({
+        success: false,
+        message: "Investment request not found",
+      });
+    }
+    
+    return res.status(200).json({
+      success: true,
+      message: "Investment request fetched successfully",
+      data: investmentRequest,
+    });
+  } catch (error) {
+    console.error("Get investment request by id error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message
+    });
+  }
+};
+
+// withdrawal investment request delete for admin
+const deleteInvestmentRequest = async (req, res) => {
+  try {
+    const investmentRequest = await InvestRequest.findByIdAndDelete(req.params.id);
+    if (!investmentRequest) {
+      return res.status(404).json({
+        message: "Investment request not found",
+      });
+    }
+    return res.status(200).json({
+      message: "Investment request deleted successfully",
+      data: investmentRequest,
+    });
+  } catch (error) {
+    console.error("Delete investment request error:", error);
+    return res.status(500).json({
+      message: "Internal server error",
+      error: error.message
+    });
+  }
+};
+
 
 module.exports = {
   adminLogin,
@@ -750,4 +842,8 @@ module.exports = {
   getPortfolios,
   addReferralReward,
   getPendingReferralRewards,
+  updateInvestmentRequest,
+  getInvestmentRequest,
+  getInvestmentRequestById,
+  deleteInvestmentRequest,
 };

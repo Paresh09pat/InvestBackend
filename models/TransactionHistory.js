@@ -16,7 +16,7 @@ const transactionHistorySchema = new Schema(
 
     type: {
       type: String,
-      enum: ["deposit", "withdrawal"],
+      enum: ["deposit", "withdrawal", "investment"],
       required: true,
     },
 

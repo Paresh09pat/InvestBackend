@@ -16,6 +16,10 @@ const {
   getPortfolios,
   addReferralReward,
   getPendingReferralRewards,
+  getInvestmentRequest,
+  getInvestmentRequestById,
+  updateInvestmentRequest,
+  deleteInvestmentRequest,
 } = require("../controller/admin-controller");
 const {
   createTrader,
@@ -130,5 +134,11 @@ router.use("/notifications",authenticateAdmin,notificationRoute)
 // Referral reward routes
 router.get("/referral-rewards/pending", authenticateAdmin, getPendingReferralRewards);
 router.post("/referral-rewards/add", authenticateAdmin, addReferralReward);
+
+// withdrawal investment request routes for admin
+router.get("/invt-requests", authenticateAdmin, getInvestmentRequest);
+router.get("/invt-req/:id", authenticateAdmin, getInvestmentRequestById);
+router.put("/invt-req/:id", authenticateAdmin, updateInvestmentRequest);
+router.delete("/invt-req/:id", authenticateAdmin, deleteInvestmentRequest);
 
 module.exports = router;
