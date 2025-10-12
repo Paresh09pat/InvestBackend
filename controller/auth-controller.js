@@ -783,7 +783,7 @@ const getReferralStats = async (req, res) => {
       earnings: {
         totalRewardsEarned,
         pendingRewardsAmount,
-        portfolioReferralAmount: portfolio?.referralAmount || 0,
+        portfolioReferralAmount: portfolio?.referralRewards || 0,
         portfolioReferralRewards: portfolio?.referralRewards || 0
       },
       referralsByPlan: referralsByPlan.map(item => ({

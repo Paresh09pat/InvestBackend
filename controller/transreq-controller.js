@@ -270,45 +270,6 @@ const createTransactionRequest = async (req, res) => {
       { session }
     );
 
-    // ✅ Step 8: Check for referral reward eligibility (first transaction)
-    if (type === "deposit") {
-      // Check if this is the user's first approved transaction
-      const existingApprovedTransactions = await TransactionRequest.countDocuments({
-        userId: userId,
-        status: "approved",
-        type: "deposit"
-      }).session(session);
-
-      if (existingApprovedTransactions === 0) {
-        // This is the first transaction, check for referral
-        const referral = await Referral.findOne({
-          referred: userId,
-          rewardClaimed: false,
-          rewardExpiresAt: { $gt: new Date() }
-        }).session(session);
-
-        if (referral) {
-          // Create referral transaction request for admin approval
-          const referralTransaction = new ReferralTransaction({
-            referrer: referral.referrer,
-            referred: userId,
-            referredPlan: plan,
-            referredDepositAmount: amount,
-            rewardAmount: 0, // Admin will set this amount
-            status: "pending",
-            transactionRequestId: transactionRequest._id
-          });
-
-          await referralTransaction.save({ session });
-
-          // Notify admin about referral reward eligibility
-          await createAdminNoitification(
-            `Referral reward request created: User ${transactionRequest.userId.name} made first deposit of ${transactionRequest.amount} in ${plan} plan. Referrer: ${referral.referrer}. Please set reward amount and approve.`,
-            `Referral Reward Request`
-          );
-        }
-      }
-    }
 
     // ✅ Step 9: Notify admin
     await createAdminNoitification(
@@ -649,7 +610,7 @@ const updateTransactionRequest = async (req, res) => {
 
         // Recompute aggregates from plan buckets
         portfolio.totalInvested = portfolio.plans.reduce((s, p) => s + (p.invested || 0), 0);
-        portfolio.currentValue = portfolio.plans.reduce((s, p) => s + (p.currentValue || 0), 0) + (portfolio.referralRewards || 0) + (portfolio.referralAmount || 0);
+        portfolio.currentValue = portfolio.plans.reduce((s, p) => s + (p.currentValue || 0), 0) + (portfolio.referralRewards || 0);
         portfolio.totalReturns = portfolio.currentValue - portfolio.totalInvested;
         portfolio.totalReturnsPercentage = portfolio.totalInvested
           ? (portfolio.totalReturns / portfolio.totalInvested) * 100
@@ -657,6 +618,46 @@ const updateTransactionRequest = async (req, res) => {
       }
 
       await portfolio.save({ session });
+
+      // ✅ Check for referral reward eligibility when deposit is approved
+      if (txnType === "deposit") {
+        // Check if this is the user's first approved transaction
+        const existingApprovedTransactions = await TransactionRequest.countDocuments({
+          userId: updatedTransactionRequest.userId,
+          status: "approved",
+          type: "deposit"
+        }).session(session);
+
+        if (existingApprovedTransactions === 1) { // This is the first approved transaction
+          // Check for referral
+          const referral = await Referral.findOne({
+            referred: updatedTransactionRequest.userId,
+            rewardClaimed: false,
+            rewardExpiresAt: { $gt: new Date() }
+          }).session(session);
+
+          if (referral) {
+            // Create referral transaction request for admin approval
+            const referralTransaction = new ReferralTransaction({
+              referrer: referral.referrer,
+              referred: updatedTransactionRequest.userId,
+              referredPlan: planName,
+              referredDepositAmount: txnAmount,
+              rewardAmount: 0, // Admin will set this amount
+              status: "pending",
+              transactionRequestId: updatedTransactionRequest._id
+            });
+
+            await referralTransaction.save({ session });
+
+            // Notify admin about referral reward eligibility
+            await createAdminNoitification(
+              `Referral reward request created: User ${updatedTransactionRequest.userId.name} made first approved deposit of ${txnAmount} in ${planName} plan. Referrer: ${referral.referrer}. Please set reward amount and approve.`,
+              `Referral Reward Request`
+            );
+          }
+        }
+      }
     }
 
     // Update TransactionHistory status if status is being updated

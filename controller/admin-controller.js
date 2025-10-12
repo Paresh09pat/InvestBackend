@@ -507,7 +507,7 @@ const updatePortfolio = async (req, res) => {
 
       // Recompute portfolio aggregates from all plans
       existingPortfolio.totalInvested = existingPortfolio.plans.reduce((sum, p) => sum + (p.invested || 0), 0);
-      existingPortfolio.currentValue = existingPortfolio.plans.reduce((sum, p) => sum + (p.currentValue || 0), 0) + (existingPortfolio.referralRewards || 0) + (existingPortfolio.referralAmount || 0);
+      existingPortfolio.currentValue = existingPortfolio.plans.reduce((sum, p) => sum + (p.currentValue || 0), 0) + (existingPortfolio.referralRewards || 0);
       existingPortfolio.totalReturns = existingPortfolio.currentValue - existingPortfolio.totalInvested;
       existingPortfolio.totalReturnsPercentage = existingPortfolio.totalInvested
         ? (existingPortfolio.totalReturns / existingPortfolio.totalInvested) * 100
@@ -521,7 +521,7 @@ const updatePortfolio = async (req, res) => {
         ? (totalReturns / totalInvested) * 100
         : 0;
 
-      existingPortfolio.currentValue = currentValue + (existingPortfolio.referralRewards || 0) + (existingPortfolio.referralAmount || 0);
+      existingPortfolio.currentValue = currentValue + (existingPortfolio.referralRewards || 0);
       existingPortfolio.totalReturns = existingPortfolio.currentValue - existingPortfolio.totalInvested;
       existingPortfolio.totalReturnsPercentage = existingPortfolio.totalInvested
         ? (existingPortfolio.totalReturns / existingPortfolio.totalInvested) * 100
@@ -1014,13 +1014,11 @@ const updateReferralTransaction = async (req, res) => {
           totalReturns: rewardAmount,
           totalReturnsPercentage: 0,
           referralRewards: rewardAmount,
-          referralAmount: rewardAmount,
           plans: []
         });
       } else {
         // Update existing portfolio
         portfolio.referralRewards = (portfolio.referralRewards || 0) + rewardAmount;
-        portfolio.referralAmount = (portfolio.referralAmount || 0) + rewardAmount;
         portfolio.currentValue = (portfolio.currentValue || 0) + rewardAmount;
         portfolio.totalReturns = portfolio.currentValue - portfolio.totalInvested;
         portfolio.totalReturnsPercentage = portfolio.totalInvested > 0
