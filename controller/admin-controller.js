@@ -941,7 +941,7 @@ const updateReferralTransaction = async (req, res) => {
 
   try {
     const { id } = req.params;
-    const { status, rewardAmount, rejectionReason } = req.body;
+    const { status, rewardAmount, rejectionReason, rewardPercentage } = req.body;
 
     if (!id) {
       return res.status(400).json({
@@ -981,6 +981,30 @@ const updateReferralTransaction = async (req, res) => {
           message: "Reward amount is required and must be greater than 0 for approval"
         });
       }
+
+      // Validate reward calculation if rewardPercentage is provided
+      if (rewardPercentage !== undefined && rewardPercentage !== null) {
+        if (typeof rewardPercentage !== "number" || rewardPercentage < 0 || rewardPercentage > 100) {
+          return res.status(400).json({
+            message: "Reward percentage must be a number between 0 and 100"
+          });
+        }
+
+        // Calculate expected reward amount based on percentage
+        const expectedRewardAmount = (referralTransaction.referredDepositAmount * rewardPercentage) / 100;
+        
+        // Check if the provided rewardAmount matches the calculated amount
+        if (Math.abs(rewardAmount - expectedRewardAmount) > 0.01) { // Allow for small floating point differences
+          return res.status(400).json({
+            message: `Reward amount (${rewardAmount}) does not match the calculated percentage amount (${expectedRewardAmount.toFixed(2)}) based on ${rewardPercentage}% of deposit amount (${referralTransaction.referredDepositAmount})`,
+            expectedRewardAmount: expectedRewardAmount.toFixed(2),
+            providedRewardAmount: rewardAmount,
+            rewardPercentage: rewardPercentage,
+            depositAmount: referralTransaction.referredDepositAmount
+          });
+        }
+      }
+
       updateData.rewardAmount = rewardAmount;
     } else if (status === "rejected") {
       if (!rejectionReason) {
