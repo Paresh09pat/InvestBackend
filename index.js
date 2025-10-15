@@ -7,6 +7,7 @@ const profileRoutes = require("./routes/profile");
 const transactionRoutes = require("./routes/transaction-route");
 const analyticsRoutes = require("./routes/analytics-route");
 const investmentRoutes = require("./routes/investment-route");
+const subscriptionRoutes = require("./routes/subscription-route");
 const dotenv = require("dotenv");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
@@ -36,6 +37,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 
 // Routes
+app.use("/api/public", subscriptionRoutes)
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminAuthRoutes);
 app.use("/api/documents", documentRoutes);
