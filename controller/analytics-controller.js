@@ -51,23 +51,23 @@ const getComprehensiveDashboard = async (req, res) => {
       investmentTrends,
       topInvestors,
       investmentDistribution,
-      
+
       // Transaction Analytics
       transactionStats,
       transactionTrends,
       statusDistribution,
       typeDistribution,
       planDistribution,
-      
+
       // Trader Analytics
       traderStats,
       traderTypeDistribution,
       traderPerformance,
-      
+
       // TransactionHistory Analytics
       transactionHistoryStats,
       transactionHistoryTrends,
-      
+
       // Additional counts
       totalTransactions,
       totalTraders,
@@ -78,7 +78,7 @@ const getComprehensiveDashboard = async (req, res) => {
       User.countDocuments(),
       User.countDocuments({ createdAt: { $gte: startDate, $lte: endDate } }),
       User.countDocuments({ verificationStatus: 'verified' }),
-      
+
       User.aggregate([
         {
           $group: {
@@ -99,7 +99,7 @@ const getComprehensiveDashboard = async (req, res) => {
           }
         }
       ]),
-      
+
       User.aggregate([
         {
           $group: {
@@ -108,7 +108,7 @@ const getComprehensiveDashboard = async (req, res) => {
           }
         }
       ]),
-      
+
       // User registration trends - monthly data
       User.aggregate([
         {
@@ -127,7 +127,7 @@ const getComprehensiveDashboard = async (req, res) => {
         },
         { $sort: { "_id.year": 1, "_id.month": 1 } }
       ]),
-      
+
       User.aggregate([
         {
           $group: {
@@ -147,7 +147,7 @@ const getComprehensiveDashboard = async (req, res) => {
           }
         }
       ]),
-      
+
       // Total investment from TransactionRequest (approved deposits)
       TransactionRequest.aggregate([
         {
@@ -163,7 +163,7 @@ const getComprehensiveDashboard = async (req, res) => {
           }
         }
       ]),
-      
+
       // Portfolio statistics
       Portfolio.aggregate([
         {
@@ -183,7 +183,7 @@ const getComprehensiveDashboard = async (req, res) => {
           }
         }
       ]),
-      
+
       // Investment trends - monthly data from TransactionRequest
       TransactionRequest.aggregate([
         {
@@ -209,7 +209,7 @@ const getComprehensiveDashboard = async (req, res) => {
         },
         { $sort: { "_id.year": 1, "_id.month": 1 } }
       ]),
-      
+
       // Top investors from TransactionRequest
       TransactionRequest.aggregate([
         {
@@ -241,7 +241,7 @@ const getComprehensiveDashboard = async (req, res) => {
         { $sort: { totalInvested: -1 } },
         { $limit: 10 }
       ]),
-      
+
       // Investment distribution from TransactionRequest
       TransactionRequest.aggregate([
         {
@@ -276,7 +276,7 @@ const getComprehensiveDashboard = async (req, res) => {
         },
         { $sort: { "_id": 1 } }
       ]),
-      
+
       // Transaction statistics from TransactionRequest
       TransactionRequest.aggregate([
         {
@@ -305,7 +305,7 @@ const getComprehensiveDashboard = async (req, res) => {
           }
         }
       ]),
-      
+
       // Transaction trends - monthly data from TransactionRequest
       TransactionRequest.aggregate([
         {
@@ -334,7 +334,7 @@ const getComprehensiveDashboard = async (req, res) => {
         },
         { $sort: { "_id.year": 1, "_id.month": 1 } }
       ]),
-      
+
       // Transaction status distribution
       TransactionRequest.aggregate([
         {
@@ -345,7 +345,7 @@ const getComprehensiveDashboard = async (req, res) => {
           }
         }
       ]),
-      
+
       // Transaction type distribution
       TransactionRequest.aggregate([
         {
@@ -357,7 +357,7 @@ const getComprehensiveDashboard = async (req, res) => {
           }
         }
       ]),
-      
+
       // Plan distribution from TransactionRequest
       TransactionRequest.aggregate([
         {
@@ -369,7 +369,7 @@ const getComprehensiveDashboard = async (req, res) => {
           }
         }
       ]),
-      
+
       // Trader statistics
       Trader.aggregate([
         {
@@ -386,7 +386,7 @@ const getComprehensiveDashboard = async (req, res) => {
           }
         }
       ]),
-      
+
       // Trader type distribution
       Trader.aggregate([
         {
@@ -399,7 +399,7 @@ const getComprehensiveDashboard = async (req, res) => {
           }
         }
       ]),
-      
+
       // Trader performance from TransactionRequest
       TransactionRequest.aggregate([
         {
@@ -454,7 +454,7 @@ const getComprehensiveDashboard = async (req, res) => {
         { $sort: { totalAmount: -1 } },
         { $limit: 10 }
       ]),
-      
+
       // TransactionHistory statistics
       TransactionHistory.aggregate([
         {
@@ -483,7 +483,7 @@ const getComprehensiveDashboard = async (req, res) => {
           }
         }
       ]),
-      
+
       // TransactionHistory trends - monthly data
       TransactionHistory.aggregate([
         {
@@ -512,7 +512,7 @@ const getComprehensiveDashboard = async (req, res) => {
         },
         { $sort: { "_id.year": 1, "_id.month": 1 } }
       ]),
-      
+
       // Additional counts
       TransactionRequest.countDocuments(),
       Trader.countDocuments(),
@@ -525,16 +525,16 @@ const getComprehensiveDashboard = async (req, res) => {
     const previousPeriodUsers = await User.countDocuments({
       createdAt: { $gte: previousPeriodStart, $lt: startDate }
     });
-    
-    const userGrowthRate = previousPeriodUsers > 0 
+
+    const userGrowthRate = previousPeriodUsers > 0
       ? ((newUsers - previousPeriodUsers) / previousPeriodUsers * 100).toFixed(2)
       : newUsers > 0 ? 100 : 0;
 
     const verificationRate = totalUsers > 0 ? (verifiedUsers / totalUsers * 100).toFixed(2) : 0;
-    const transactionSuccessRate = totalTransactions > 0 
-      ? (transactionStats[0]?.approvedTransactions / totalTransactions * 100).toFixed(2) 
+    const transactionSuccessRate = totalTransactions > 0
+      ? (transactionStats[0]?.approvedTransactions / totalTransactions * 100).toFixed(2)
       : 0;
-    
+
     const platformHealthScore = (
       (parseFloat(verificationRate) * 0.3) +
       (parseFloat(transactionSuccessRate) * 0.4) +
@@ -698,7 +698,67 @@ const getComprehensiveDashboard = async (req, res) => {
   }
 };
 
+const homeAnalytics = async (req, res) => {
+  try {
+    const totalAmountInvestedResult = await TransactionRequest.aggregate([
+      {
+        $match: {
+          status: "approved",
+          type: "deposit"
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: "$amount" }
+        }
+      }
+    ]);
+
+    // ✅ Count total users excluding admins
+    const totalUsers = await User.countDocuments({ role: { $ne: "admin" } });
+
+    // ✅ Sum of total returns
+    const totalReturnsResult = await Portfolio.aggregate([
+      {
+        $match: {
+          totalReturns: { $gt: 0 }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: "$totalReturns" }
+        }
+      }
+    ]);
+
+    // ✅ Extract numbers only (no arrays, no _id)
+    const totalAmountInvested = totalAmountInvestedResult[0]?.total || 0;
+    const totalReturns = totalReturnsResult[0]?.total || 0;
+
+    // ✅ Send clean response
+    return res.status(200).json({
+      message: "Home analytics retrieved successfully",
+      data: {
+        totalAmountInvested,
+        totalUsers,
+        totalReturns
+      }
+    });
+
+  } catch (err) {
+    console.error("Err", err);
+    return res.status(500).json({
+      message: "Internal server error",
+      error: err.message
+    });
+  }
+};
+
+
 // Export analytics function
 module.exports = {
-  getComprehensiveDashboard
+  getComprehensiveDashboard,
+  homeAnalytics
 };
