@@ -35,13 +35,13 @@ const createAdmin = async (req, res) => {
 
     const existingAdmin = await User.findOne({ email: ADMIN_EMAIL });
     if (existingAdmin) {
-      return res.status(400).json({ message: "Admin already exists" });
+      console.log("Admin already exists");
+      return
     }
     const admin = await User.create({ name: "Admin", email: ADMIN_EMAIL, password: ADMIN_PASSWORD, role: "admin", phone: "8985632145", isVerified: true, agree: true, verificationStatus: "verified" });
 
   } catch (error) {
     console.error("Error creating admin:", error);
-
   }
 }
 
