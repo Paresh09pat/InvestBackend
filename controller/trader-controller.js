@@ -71,7 +71,6 @@ const createTrader = async (req, res) => {
       const addTrader = await Subscription.findOneAndUpdate({ name: traderType }, {
         $push: { traders: trader._id },
       });
-      console.log("addTrader", addTrader);
     }
 
 

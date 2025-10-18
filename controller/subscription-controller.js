@@ -8,9 +8,7 @@ const createDefaultSubscriptions = async () => {
             const exists = await Subscription.findOne({ name: plan.name });
             if (!exists) {
                 await Subscription.create(plan);
-                console.log(`Created subscription plan: ${plan.name}`);
             } else {
-                console.log(`${plan.name} already exists`);
             }
         }
     } catch (err) {

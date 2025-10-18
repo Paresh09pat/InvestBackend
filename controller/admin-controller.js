@@ -35,12 +35,10 @@ const createAdmin = async (req, res) => {
 
     const existingAdmin = await User.findOne({ email: ADMIN_EMAIL });
     if (existingAdmin) {
-      console.log("admin already exists")
-      return
+      return res.status(400).json({ message: "Admin already exists" });
     }
     const admin = await User.create({ name: "Admin", email: ADMIN_EMAIL, password: ADMIN_PASSWORD, role: "admin", phone: "8985632145", isVerified: true, agree: true, verificationStatus: "verified" });
 
-    console.log("admin created successfully")
   } catch (error) {
     console.error("Error creating admin:", error);
 
@@ -206,7 +204,6 @@ const adminProfile = async (req, res) => {
       }
     });
   } catch (error) {
-    console.log("error>>>", error)
     if (error.name === "JsonWebTokenError") {
       return res.status(401).json({
         message: "Invalid admin token",
@@ -219,7 +216,6 @@ const adminProfile = async (req, res) => {
       });
     }
 
-    console.log("error>>>", error)
     res.status(500).json({
       message: "Internal server error",
     });
@@ -277,7 +273,6 @@ const updateAdmin = async (req, res) => {
     });
 
   } catch (err) {
-    console.error(err);
     return res.status(500).json({
       message: "Internal server error",
       error: err.message,
