@@ -21,6 +21,16 @@ const subscriptionSchema = new Schema({
     maxReturnRate: {
         type: Number,
     },
+    duration: {
+        type: Number,
+    },
+    description: {
+        type: String,
+    },
+    isActive: {
+        type: Boolean,
+        default: true
+    },
     traders: [{
         type: Schema.Types.ObjectId,
         ref: "Trader"

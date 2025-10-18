@@ -54,28 +54,65 @@ const getSinglePlan = async (req,res)=>{
 
 const updatePlans = async (req, res) => {
     try {
-        const {id} = req.params
-        const { name, minInvestment, maxInvestment, minReturnRate, maxReturnRate, features } = req.body;
+        const {name} = req.params
+        const { 
+            minAmount, 
+            maxAmount, 
+            minInterestRate, 
+            maxInterestRate, 
+            features, 
+            duration, 
+            description, 
+            isActive 
+        } = req.body;
 
-        const updatedPlan = await Subscription.findOneAndUpdate({ name }, {
-            name,
-            minInvestment,
-            maxInvestment,
-            minReturnRate,
-            maxReturnRate,
+        console.log("req.body",req.body)
+
+        // Convert name to lowercase to match schema enum
+        const planName = name.toLowerCase();
+        
+        // Map request fields to database fields
+        const updateData = {
+            minInvestment: minAmount,
+            maxInvestment: maxAmount,
+            minReturnRate: minInterestRate,
+            maxReturnRate: maxInterestRate,
             features,
+            duration,
+            description,
+            isActive
+        };
+
+        // Remove undefined fields
+        Object.keys(updateData).forEach(key => {
+            if (updateData[key] === undefined) {
+                delete updateData[key];
+            }
         });
+
+        const updatedPlan = await Subscription.findOneAndUpdate(
+            { name: planName }, 
+            updateData,
+            { new: true, runValidators: true }
+        );
+        
         if (!updatedPlan) {
             return res.status(404).json({
                 message: "Subscription plan not found",
             });
         }
+
+        console.log("updatePlan",updatedPlan)
         res.status(200).json({
             message: "Subscription plan updated successfully",
             updatedPlan,
         });
     } catch (err) {
         console.error("Error updating subscription plans:", err.message);
+        res.status(500).json({
+            message: "Internal server error",
+            error: err.message
+        });
     }
 };
 
