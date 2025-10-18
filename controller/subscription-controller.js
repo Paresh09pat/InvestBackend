@@ -57,26 +57,26 @@ const updatePlans = async (req, res) => {
       const {id} = req.params
         const { 
             name,
-            minAmount, 
-            maxAmount, 
-            minInterestRate, 
-            maxInterestRate, 
+            minInvestment, 
+            maxInvestment, 
+            minReturnRate, 
+            maxReturnRate, 
             features, 
             duration, 
             description, 
             isActive 
         } = req.body;
 
-
+        console.log("req.body",req.body)
         // Convert name to lowercase to match schema enum
         const planName = name.toLowerCase();
         
         // Map request fields to database fields
         const updateData = {
-            minInvestment: minAmount,
-            maxInvestment: maxAmount,
-            minReturnRate: minInterestRate,
-            maxReturnRate: maxInterestRate,
+            minInvestment,
+            maxInvestment,
+            minReturnRate,
+            maxReturnRate,
             features,
             duration,
             description,
@@ -90,8 +90,10 @@ const updatePlans = async (req, res) => {
             }
         });
 
+        console.log("updateData", updateData);
+
         const updatedPlan = await Subscription.findOneAndUpdate(
-            { name: planName }, 
+            { _id: id }, 
             updateData,
             { new: true, runValidators: true }
         );
