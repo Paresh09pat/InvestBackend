@@ -54,8 +54,9 @@ const getSinglePlan = async (req,res)=>{
 
 const updatePlans = async (req, res) => {
     try {
-        const {name} = req.params
+      const {id} = req.params
         const { 
+            name,
             minAmount, 
             maxAmount, 
             minInterestRate, 

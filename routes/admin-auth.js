@@ -128,8 +128,8 @@ router.get(
 
 // Subscription plans
 router.get("/plans", authenticateAdmin, getDefaultPlans);
-router.put("/plan/:name", authenticateAdmin, updatePlans);
 router.get("/plan/:id", authenticateAdmin, getSinglePlan);
+router.put("/plan/:id", authenticateAdmin, updatePlans);
 
 // notification route
 router.use("/notifications",authenticateAdmin,notificationRoute)
