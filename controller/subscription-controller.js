@@ -65,7 +65,6 @@ const updatePlans = async (req, res) => {
             isActive 
         } = req.body;
 
-        console.log("req.body",req.body)
         // Convert name to lowercase to match schema enum
         const planName = name.toLowerCase();
         
