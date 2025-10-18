@@ -189,7 +189,6 @@ const getMyTransactionHistory = async (req, res) => {
       data: transactionHistory,
     });
   } catch (err) {
-    console.log("Error getting my transaction history:", err);
     res.status(500).json({
       success: false,
       message: "Internal server error",

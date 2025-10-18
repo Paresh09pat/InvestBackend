@@ -38,7 +38,6 @@ const authenticateUser = async (req, res, next) => {
       });
     }
     
-    console.log("error>>>",error)
     res.status(500).json({
       message: "Internal server error"
     });
@@ -82,7 +81,6 @@ const authenticateAdmin = async (req, res, next) => {
     }
     
 
-    console.log("error>>>",error)
     res.status(500).json({
       message: "Internal server error"
     });

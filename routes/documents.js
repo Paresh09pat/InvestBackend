@@ -257,7 +257,6 @@ router.post(
         user: updatedUser.toJSON(),
       });
     } catch (error) {
-      console.log(error);
       // Handle validation errors
       if (error.name === "ValidationError") {
         return res.status(400).json({
