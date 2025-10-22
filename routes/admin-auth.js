@@ -23,6 +23,7 @@ const {
   getReferralTransactions,
   updateReferralTransaction,
   getReferralTransactionById,
+  triggerManualPortfolioUpdate,
 } = require("../controller/admin-controller");
 const {
   createTrader,
@@ -147,5 +148,8 @@ router.delete("/invt-req/:id", authenticateAdmin, deleteInvestmentRequest);
 router.get("/referral-transactions", authenticateAdmin, getReferralTransactions);
 router.get("/referral-transaction/:id", authenticateAdmin, getReferralTransactionById);
 router.put("/referral-transaction/:id", authenticateAdmin, updateReferralTransaction);
+
+// Manual portfolio update trigger (for testing)
+router.post("/trigger-portfolio-update", authenticateAdmin, triggerManualPortfolioUpdate);
 
 module.exports = router;

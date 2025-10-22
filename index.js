@@ -8,6 +8,7 @@ const transactionRoutes = require("./routes/transaction-route");
 const analyticsRoutes = require("./routes/analytics-route");
 const investmentRoutes = require("./routes/investment-route");
 const subscriptionRoutes = require("./routes/subscription-route");
+const { startPortfolioScheduler } = require("./utils/portfolioScheduler");
 const dotenv = require("dotenv");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
@@ -69,6 +70,9 @@ app.use((err, req, res, next) => {
 
 // Connect to database
 connectDB();
+
+// Start portfolio scheduler
+startPortfolioScheduler();
 
 // Start server
 const PORT = process.env.PORT || 3000;

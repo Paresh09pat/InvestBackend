@@ -11,6 +11,7 @@ const InvestRequest = require("../models/InvestRequest");
 const ReferralTransaction = require("../models/ReferralTransaction");
 const TransactionRequest = require("../models/TransactionRequest");
 const { createNotification } = require("./notification-controller");
+const { triggerPortfolioUpdate } = require("../utils/portfolioScheduler");
 
 dotenv.config();
 
@@ -451,11 +452,11 @@ const adminLogout = async (req, res) => {
 const updatePortfolio = async (req, res) => {
   try {
     const { id } = req.params;
-    const { currentValue, planName } = req.body;
+    const { returnRate, planName } = req.body;
 
-    if (typeof currentValue !== "number") {
+    if (typeof returnRate !== "number" || returnRate <= 0) {
       return res.status(400).json({
-        message: "currentValue must be a number",
+        message: "returnRate must be a positive number",
       });
     }
 
@@ -484,21 +485,23 @@ const updatePortfolio = async (req, res) => {
       }
 
       const plan = existingPortfolio.plans[planIndex];
-      const planInvested = plan.invested || 0;
-      const planReturns = currentValue - planInvested;
-
-      // Update the specific plan
-      existingPortfolio.plans[planIndex].currentValue = currentValue;
-      existingPortfolio.plans[planIndex].returns = planReturns;
-
-      // Add to plan's price history
-      if (!existingPortfolio.plans[planIndex].priceHistory) {
-        existingPortfolio.plans[planIndex].priceHistory = [];
+      
+      // Validate return rate is within min/max bounds
+      if (plan.returnRate.min !== null && plan.returnRate.min !== undefined && returnRate < plan.returnRate.min) {
+        return res.status(400).json({
+          message: `Return rate ${returnRate}% is below minimum ${plan.returnRate.min}% for ${planName} plan`,
+        });
       }
-      existingPortfolio.plans[planIndex].priceHistory.push({
-        value: currentValue,
-        updatedAt: new Date()
-      });
+      
+      if (plan.returnRate.max !== null && plan.returnRate.max !== undefined && returnRate > plan.returnRate.max) {
+        return res.status(400).json({
+          message: `Return rate ${returnRate}% is above maximum ${plan.returnRate.max}% for ${planName} plan`,
+        });
+      }
+
+      // Update the admin-set return rate for the specific plan
+      existingPortfolio.plans[planIndex].adminSetReturnRate = returnRate;
+      existingPortfolio.plans[planIndex].lastDailyUpdate = new Date();
 
       // Recompute portfolio aggregates from all plans
       existingPortfolio.totalInvested = existingPortfolio.plans.reduce((sum, p) => sum + (p.invested || 0), 0);
@@ -509,37 +512,15 @@ const updatePortfolio = async (req, res) => {
         : 0;
 
     } else {
-      // Update portfolio-wide currentValue (legacy behavior)
-      const totalInvested = existingPortfolio.totalInvested;
-      const totalReturns = currentValue - totalInvested;
-      const totalReturnsPercentage = totalInvested
-        ? (totalReturns / totalInvested) * 100
-        : 0;
-
-      existingPortfolio.currentValue = currentValue + (existingPortfolio.referralRewards || 0);
-      existingPortfolio.totalReturns = existingPortfolio.currentValue - existingPortfolio.totalInvested;
-      existingPortfolio.totalReturnsPercentage = existingPortfolio.totalInvested
-        ? (existingPortfolio.totalReturns / existingPortfolio.totalInvested) * 100
-        : 0;
-
-      // Add to all plan price histories if they exist
-      if (existingPortfolio.plans && existingPortfolio.plans.length > 0) {
-        existingPortfolio.plans.forEach(plan => {
-          if (!plan.priceHistory) {
-            plan.priceHistory = [];
-          }
-          plan.priceHistory.push({
-            value: plan.currentValue || 0,
-            updatedAt: new Date()
-          });
-        });
-      }
+      return res.status(400).json({
+        message: "planName is required when setting return rate",
+      });
     }
 
     const portfolio = await existingPortfolio.save();
 
     res.status(200).json({
-      message: "Portfolio updated successfully",
+      message: "Portfolio return rate updated successfully",
       portfolio,
     });
   } catch (err) {
@@ -1129,6 +1110,22 @@ const getReferralTransactionById = async (req, res) => {
   }
 };
 
+// Manual trigger for portfolio update (for testing)
+const triggerManualPortfolioUpdate = async (req, res) => {
+  try {
+    await triggerPortfolioUpdate();
+    res.status(200).json({
+      message: "Portfolio update triggered successfully",
+    });
+  } catch (error) {
+    console.error("Manual portfolio update error:", error);
+    res.status(500).json({
+      message: "Internal server error",
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   adminLogin,
   adminProfile,
@@ -1150,4 +1147,5 @@ module.exports = {
   getReferralTransactions,
   updateReferralTransaction,
   getReferralTransactionById,
+  triggerManualPortfolioUpdate,
 };

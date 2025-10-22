@@ -57,6 +57,16 @@ const portfolioSchema = new Schema(
           min: { type: Number },
           max: { type: Number },
         },
+        // Admin-set daily return rate percentage
+        adminSetReturnRate: {
+          type: Number,
+          default: null,
+        },
+        // Last update timestamp for daily calculations
+        lastDailyUpdate: {
+          type: Date,
+          default: null,
+        },
         // Per-plan price history for charting
         priceHistory: [priceHistorySchema],
       },
