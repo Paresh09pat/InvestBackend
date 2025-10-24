@@ -508,6 +508,9 @@ const updatePortfolio = async (req, res) => {
       // Update the admin-set return rate for the specific plan
       existingPortfolio.plans[planIndex].adminSetReturnRate = returnRate;
       existingPortfolio.plans[planIndex].lastDailyUpdate = new Date();
+      
+      console.log(`Updated plan ${planName} with adminSetReturnRate: ${returnRate}`);
+      console.log(`Plan data:`, existingPortfolio.plans[planIndex]);
 
       // Recompute portfolio aggregates from all plans
       existingPortfolio.totalInvested = existingPortfolio.plans.reduce((sum, p) => sum + (p.invested || 0), 0);

@@ -5,16 +5,25 @@ const Notification = require('../models/Notification');
 // Function to update portfolio values based on admin-set return rates
 const updatePortfolioValues = async () => {
   try {
-    console.log('Starting daily portfolio update...');
+    console.log('=== Starting daily portfolio update ===');
+    console.log('Timestamp:', new Date().toISOString());
     
     // Find all portfolios that have admin-set return rates
+    // Using $elemMatch to properly query nested arrays
     const portfolios = await Portfolio.find({
-      'plans.adminSetReturnRate': { $exists: true, $ne: null }
+      plans: {
+        $elemMatch: {
+          adminSetReturnRate: { $exists: true, $ne: null, $gt: 0 }
+        }
+      }
     });
+
+    console.log(`Found ${portfolios.length} portfolios with admin-set return rates`);
 
     let updatedCount = 0;
 
     for (const portfolio of portfolios) {
+      console.log(`Processing portfolio for user: ${portfolio.user}`);
       let portfolioUpdated = false;
 
       // Update each plan that has an admin-set return rate
@@ -22,8 +31,6 @@ const updatePortfolioValues = async () => {
         const plan = portfolio.plans[i];
         
         if (plan.adminSetReturnRate && plan.invested > 0) {
-          // Calculate daily return (admin-set percentage / 100 for daily rate)
-          // For example: 7% annual = 7/365 = 0.019% daily
           const dailyReturnRate = plan.adminSetReturnRate / 365;
           const dailyReturn = plan.invested * (dailyReturnRate / 100);
           
@@ -57,7 +64,20 @@ const updatePortfolioValues = async () => {
           ? (portfolio.totalReturns / portfolio.totalInvested) * 100
           : 0;
 
-        await portfolio.save();
+        // Use findByIdAndUpdate to avoid version conflicts
+        await Portfolio.findByIdAndUpdate(
+          portfolio._id,
+          {
+            $set: {
+              plans: portfolio.plans,
+              totalInvested: portfolio.totalInvested,
+              currentValue: portfolio.currentValue,
+              totalReturns: portfolio.totalReturns,
+              totalReturnsPercentage: portfolio.totalReturnsPercentage
+            }
+          },
+          { new: true }
+        );
         updatedCount++;
 
         // Create notification for user about portfolio update
@@ -93,9 +113,9 @@ const startPortfolioScheduler = () => {
     timezone: "UTC"
   });
 
-  // For testing purposes, also run every 5 minutes (remove in production)
+  // For testing purposes, run every 5 minutes (remove in production)
   // cron.schedule('*/5 * * * *', async () => {
-  //   console.log('Running test portfolio update...');
+  //   console.log('=== Running test portfolio update (every 5 minutes) ===');
   //   await updatePortfolioValues();
   // }, {
   //   scheduled: true,
