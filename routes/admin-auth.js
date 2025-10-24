@@ -60,7 +60,8 @@ router.post("/login", adminLogin);
 // Admin profile route (protected)
 router.get("/profile", authenticateAdmin, adminProfile);
 router.route("/portfolios").get(authenticateAdmin, getPortfolios)
-router.route("/portfolio/:id").get(authenticateAdmin, getPortfolioById).put(authenticateAdmin, updatePortfolio)
+router.get("/portfolio/:id", authenticateAdmin, getPortfolioById)
+router.put("/portfolio/:id", authenticateAdmin, updatePortfolio)
 
 router.put("/update", authenticateAdmin, uploadPicture, handleUploadError, updateAdmin);
 

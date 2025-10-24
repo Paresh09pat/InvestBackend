@@ -451,14 +451,20 @@ const adminLogout = async (req, res) => {
 
 const updatePortfolio = async (req, res) => {
   try {
+   
+    
     const { id } = req.params;
     const { returnRate, planName } = req.body;
 
+
     if (typeof returnRate !== "number" || returnRate <= 0) {
+      console.log('Return rate validation failed:', typeof returnRate, returnRate);
       return res.status(400).json({
         message: "returnRate must be a positive number",
       });
     }
+
+    console.log('Validation passed, proceeding with portfolio update...');
 
     // Find the existing portfolio
     const existingPortfolio = await Portfolio.findById(id);
@@ -573,6 +579,36 @@ const getPortfolios = async (req, res) => {
 
       ...(search ? [{ $match: searchFilter }] : []),
 
+      // Project all fields including adminSetReturnRate in plans
+      {
+        $project: {
+          user: 1,
+          totalInvested: 1,
+          currentValue: 1,
+          totalReturns: 1,
+          totalReturnsPercentage: 1,
+          referralRewards: 1,
+          plans: {
+            $map: {
+              input: "$plans",
+              as: "plan",
+              in: {
+                name: "$$plan.name",
+                invested: "$$plan.invested",
+                currentValue: "$$plan.currentValue",
+                returns: "$$plan.returns",
+                returnRate: "$$plan.returnRate",
+                adminSetReturnRate: "$$plan.adminSetReturnRate",
+                lastDailyUpdate: "$$plan.lastDailyUpdate",
+                priceHistory: "$$plan.priceHistory"
+              }
+            }
+          },
+          createdAt: 1,
+          updatedAt: 1
+        }
+      },
+
       { $skip: skip },
       { $limit: parseInt(limit) },
     ];
@@ -621,7 +657,7 @@ const getPortfolios = async (req, res) => {
 
 const getPortfolioById = async (req, res) => {
   try {
-
+    console.log('=== getPortfolioById called ===');
     const { id } = req.params;
     const portfolio = await Portfolio.findById(id)
     res.status(200).json({
