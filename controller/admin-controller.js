@@ -451,20 +451,30 @@ const adminLogout = async (req, res) => {
 
 const updatePortfolio = async (req, res) => {
   try {
-   
-    
     const { id } = req.params;
-    const { returnRate, planName } = req.body;
+    const { returnRate, planName, value } = req.body;
 
+    // Validate that at least one field is provided
+    if (returnRate === undefined && value === undefined) {
+      return res.status(400).json({
+        message: "Either returnRate or value must be provided",
+      });
+    }
 
-    if (typeof returnRate !== "number" || returnRate <= 0) {
+    // Validate returnRate if provided
+    if (returnRate !== undefined && (typeof returnRate !== "number" || returnRate <= 0)) {
       console.log('Return rate validation failed:', typeof returnRate, returnRate);
       return res.status(400).json({
         message: "returnRate must be a positive number",
       });
     }
 
-    console.log('Validation passed, proceeding with portfolio update...');
+    // Validate value if provided
+    if (value !== undefined && (typeof value !== "number" || value < 0)) {
+      return res.status(400).json({
+        message: "value must be a non-negative number",
+      });
+    }
 
     // Find the existing portfolio
     const existingPortfolio = await Portfolio.findById(id);
@@ -492,25 +502,48 @@ const updatePortfolio = async (req, res) => {
 
       const plan = existingPortfolio.plans[planIndex];
       
-      // Validate return rate is within min/max bounds
-      if (plan.returnRate.min !== null && plan.returnRate.min !== undefined && returnRate < plan.returnRate.min) {
-        return res.status(400).json({
-          message: `Return rate ${returnRate}% is below minimum ${plan.returnRate.min}% for ${planName} plan`,
-        });
-      }
-      
-      if (plan.returnRate.max !== null && plan.returnRate.max !== undefined && returnRate > plan.returnRate.max) {
-        return res.status(400).json({
-          message: `Return rate ${returnRate}% is above maximum ${plan.returnRate.max}% for ${planName} plan`,
-        });
+      // Update return rate if provided
+      if (returnRate !== undefined) {
+        // Validate return rate is within min/max bounds
+        if (plan.returnRate.min !== null && plan.returnRate.min !== undefined && returnRate < plan.returnRate.min) {
+          return res.status(400).json({
+            message: `Return rate ${returnRate}% is below minimum ${plan.returnRate.min}% for ${planName} plan`,
+          });
+        }
+        
+        if (plan.returnRate.max !== null && plan.returnRate.max !== undefined && returnRate > plan.returnRate.max) {
+          return res.status(400).json({
+            message: `Return rate ${returnRate}% is above maximum ${plan.returnRate.max}% for ${planName} plan`,
+          });
+        }
+
+        // Update the admin-set return rate for the specific plan
+        existingPortfolio.plans[planIndex].adminSetReturnRate = returnRate;
+        existingPortfolio.plans[planIndex].lastDailyUpdate = new Date();
       }
 
-      // Update the admin-set return rate for the specific plan
-      existingPortfolio.plans[planIndex].adminSetReturnRate = returnRate;
-      existingPortfolio.plans[planIndex].lastDailyUpdate = new Date();
-      
-      console.log(`Updated plan ${planName} with adminSetReturnRate: ${returnRate}`);
-      console.log(`Plan data:`, existingPortfolio.plans[planIndex]);
+      // Update value (currentValue) if provided
+      if (value !== undefined) {
+        const oldValue = plan.currentValue;
+        const newValue = value;
+
+        // Update the current value
+        existingPortfolio.plans[planIndex].currentValue = newValue;
+        
+        // Recalculate returns for this plan
+        existingPortfolio.plans[planIndex].returns = newValue - (plan.invested || 0);
+
+        // Add to price history if value changed
+        if (oldValue !== newValue) {
+          if (!existingPortfolio.plans[planIndex].priceHistory) {
+            existingPortfolio.plans[planIndex].priceHistory = [];
+          }
+          existingPortfolio.plans[planIndex].priceHistory.push({
+            value: newValue,
+            updatedAt: new Date()
+          });
+        }
+      }
 
       // Recompute portfolio aggregates from all plans
       existingPortfolio.totalInvested = existingPortfolio.plans.reduce((sum, p) => sum + (p.invested || 0), 0);
@@ -522,14 +555,18 @@ const updatePortfolio = async (req, res) => {
 
     } else {
       return res.status(400).json({
-        message: "planName is required when setting return rate",
+        message: "planName is required when updating portfolio",
       });
     }
 
     const portfolio = await existingPortfolio.save();
 
+    const updateMessages = [];
+    if (returnRate !== undefined) updateMessages.push("return rate");
+    if (value !== undefined) updateMessages.push("current value");
+
     res.status(200).json({
-      message: "Portfolio return rate updated successfully",
+      message: `Portfolio ${updateMessages.join(" and ")} updated successfully`,
       portfolio,
     });
   } catch (err) {
